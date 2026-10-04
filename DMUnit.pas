@@ -1,0 +1,131 @@
+unit DMUnit;
+
+interface
+
+uses
+  System.SysUtils, System.Classes, Winapi.Windows, MMSystem;
+
+type
+  TDM = class(TDataModule)
+  private
+    const
+      AliasName      = 'bgMusic';
+      MenuMusicFile  = 'resources\music\background.mp3';
+      GameMusicFile  = 'resources\music\game_background.mp3';
+      ClickSoundFile = 'resources\sounds\click.wav';
+    procedure SendCmd(const Cmd: string);
+  public
+    FMusicVolume: Integer;
+    FEffectsVolume: Integer;
+    FMasterVolume: Integer;
+    FClickSoundEnabled: Boolean;
+
+    procedure PlayMusic;
+    procedure PlayGameMusic;
+    procedure StopMusic;
+    procedure PlayClickSound;
+
+    procedure SetMusicVolume(Value: Integer);
+    procedure SetEffectsVolume(Value: Integer);
+    procedure SetMasterVolume(Value: Integer);
+    procedure EnableClickSound(Enabled: Boolean);
+  end;
+
+var
+  DM: TDM;
+  FIsPlaying: Boolean;
+
+implementation
+
+{%CLASSGROUP 'Vcl.Controls.TControl'}
+{$R *.dfm}
+
+procedure TDM.SendCmd(const Cmd: string);
+begin
+  mciSendString(PChar(Cmd), nil, 0, 0);
+end;
+
+procedure TDM.PlayMusic;
+var
+  Path: string;
+begin
+  if FIsPlaying then Exit;
+
+  Path := IncludeTrailingPathDelimiter(ExtractFilePath(ParamStr(0))) + MenuMusicFile;
+  if not FileExists(Path) then Exit;
+
+  SendCmd('open "' + Path + '" alias ' + AliasName);
+  SendCmd('play ' + AliasName + ' repeat');
+
+  // Устанавливаем громкость по последней настройке
+  SetMusicVolume(FMusicVolume);
+
+  FIsPlaying := True;
+end;
+
+procedure TDM.PlayGameMusic;
+var
+  Path: string;
+begin
+  if FIsPlaying then
+    StopMusic; // Stop any currently playing music
+
+  Path := IncludeTrailingPathDelimiter(ExtractFilePath(ParamStr(0))) + GameMusicFile;
+  if not FileExists(Path) then Exit;
+
+  SendCmd('open "' + Path + '" alias ' + AliasName);
+  SendCmd('play ' + AliasName + ' repeat');
+
+  SetMusicVolume(FMusicVolume);
+
+  FIsPlaying := True;
+end;
+
+procedure TDM.StopMusic;
+begin
+  if not FIsPlaying then Exit;
+  SendCmd('stop ' + AliasName);
+  SendCmd('close ' + AliasName);
+  FIsPlaying := False;
+end;
+
+procedure TDM.PlayClickSound;
+var
+  Path: string;
+begin
+  if not FClickSoundEnabled then Exit;
+  Path := IncludeTrailingPathDelimiter(ExtractFilePath(ParamStr(0))) + ClickSoundFile;
+  if FileExists(Path) then
+    PlaySound(PChar(Path), 0, SND_ASYNC or SND_FILENAME);
+end;
+
+procedure TDM.SetMusicVolume(Value: Integer);
+var
+  Vol: DWORD;
+begin
+  FMusicVolume := Value;
+  Vol := MulDiv(Value, High(Word), 100);
+  waveOutSetVolume(0, Vol or (Vol shl 16));
+end;
+
+procedure TDM.SetEffectsVolume(Value: Integer);
+begin
+  FEffectsVolume := Value;
+end;
+
+procedure TDM.SetMasterVolume(Value: Integer);
+var
+  VolAll: DWORD;
+begin
+  FMasterVolume := Value;
+  VolAll := MulDiv(Value, High(Word), 100);
+  waveOutSetVolume(0, VolAll or (VolAll shl 16));
+end;
+
+procedure TDM.EnableClickSound(Enabled: Boolean);
+begin
+  FClickSoundEnabled := Enabled;
+end;
+
+end.
+

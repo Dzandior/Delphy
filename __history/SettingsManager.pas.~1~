@@ -1,0 +1,69 @@
+unit SettingsManager;
+
+interface
+
+uses
+  System.Classes, System.SysUtils, System.IniFiles;
+
+type
+  TDisplayMode = (dmFullScreen, dmBorderless, dmWindowed);
+
+  TGameSettings = record
+    MusicVolume: Integer;    // 0..100
+    EffectsVolume: Integer;  // 0..100
+    MasterVolume: Integer;   // 0..100
+    ClickSoundEnabled: Boolean;
+    Language: string;        // 'ru', 'en', 'zh'
+    DisplayMode: TDisplayMode;
+  end;
+
+procedure LoadSettings(var S: TGameSettings; const FileName: string);
+procedure SaveSettings(const S: TGameSettings; const FileName: string);
+
+implementation
+
+procedure LoadSettings(var S: TGameSettings; const FileName: string);
+var
+  Ini: TIniFile;
+begin
+  Ini := TIniFile.Create(FileName);
+  try
+    S.MusicVolume       := Ini.ReadInteger('Sound', 'MusicVolume', 100);
+    S.EffectsVolume     := Ini.ReadInteger('Sound', 'EffectsVolume', 100);
+    S.MasterVolume      := Ini.ReadInteger('Sound', 'MasterVolume', 100);
+    S.ClickSoundEnabled := Ini.ReadBool('Sound', 'ClickSound', True);
+    S.Language          := Ini.ReadString('General', 'Language', 'ru');
+    S.DisplayMode       := TDisplayMode(
+                           Ini.ReadInteger('General', 'DisplayMode', Ord(dmFullScreen))
+                         );
+  finally
+    Ini.Free;
+  end;
+end;
+
+procedure SaveSettings(const S: TGameSettings; const FileName: string);
+var
+  Ini: TIniFile;
+begin
+  Ini := TIniFile.Create(FileName);
+  try
+    Ini.WriteInteger('Sound', 'MusicVolume', S.MusicVolume);
+    Ini.WriteInteger('Sound', 'EffectsVolume', S.EffectsVolume);
+    Ini.WriteInteger('Sound', 'MasterVolume', S.MasterVolume);
+    Ini.WriteBool('Sound', 'ClickSound', S.ClickSoundEnabled);
+    Ini.WriteString('General', 'Language', S.Language);
+    Ini.WriteInteger('General', 'DisplayMode', Ord(S.DisplayMode));
+  finally
+    Ini.Free;
+  end;
+end;
+
+end.
+```
+
+**Действия:**
+
+1. Добавить новый файл `SettingsManager.pas` в проект.
+2. Подключить `System.IniFiles`.
+3. Определить структуру `TGameSettings` и функции загрузки/сохранения.
+

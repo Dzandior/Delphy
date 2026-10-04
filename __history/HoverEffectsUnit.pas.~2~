@@ -1,0 +1,76 @@
+unit HoverEffectsUnit;
+
+interface
+
+uses
+  System.Classes, Vcl.Forms, Vcl.Buttons, Vcl.Graphics;
+
+/// Назначить всем TSpeedButton на форме обработчики hover-эффекта
+procedure AssignHoverEffects(AForm: TForm);
+
+implementation
+
+type
+  /// Класс-хелпер, хранящий методы hover-эффекта
+  THoverHelper = class(TComponent)
+  public
+    procedure ButtonMouseEnter(Sender: TObject);
+    procedure ButtonMouseLeave(Sender: TObject);
+  end;
+
+var
+  HoverHelper: THoverHelper;
+
+procedure AssignHoverEffects(AForm: TForm);
+var
+  i: Integer;
+  btn: TSpeedButton;
+begin
+  if not Assigned(HoverHelper) then
+    HoverHelper := THoverHelper.Create(nil);
+
+  for i := 0 to AForm.ComponentCount - 1 do
+    if AForm.Components[i] is TSpeedButton then
+    begin
+      btn := TSpeedButton(AForm.Components[i]);
+      btn.OnMouseEnter := HoverHelper.ButtonMouseEnter;
+      btn.OnMouseLeave := HoverHelper.ButtonMouseLeave;
+    end;
+end;
+
+{ THoverHelper }
+
+procedure THoverHelper.ButtonMouseEnter(Sender: TObject);
+begin
+  if Sender is TSpeedButton then
+    with TSpeedButton(Sender) do
+    begin
+      // Полужирный + курсив
+      Font.Style := [fsBold, fsItalic];
+      // Синий текст
+      Font.Color := clBlue;
+      // Flat=True уже рисует рамку при наведении автоматически
+    end;
+end;
+
+procedure THoverHelper.ButtonMouseLeave(Sender: TObject);
+begin
+  if Sender is TSpeedButton then
+    with TSpeedButton(Sender) do
+    begin
+      // Сброс стиля
+      Font.Style := [];
+      // Обычный цвет текста
+      Font.Color := clBtnText;
+      // Рамка исчезнет автоматически (Flat=True)
+    end;
+end;
+
+initialization
+  HoverHelper := nil;
+
+finalization
+  HoverHelper.Free;
+
+end.
+

@@ -1,0 +1,25 @@
+program TowerDefense;
+
+uses
+  Vcl.Forms,
+  Vcl.ImgList,
+  System.SysUtils,
+  MainMenuUnit in 'MainMenuUnit.pas' {MainMenuForm},
+  SettingsUnit in 'SettingsUnit.pas' {SettingsForm},
+  CreditsUnit in 'CreditsUnit.pas' {CreditsForm},
+  GameMenuUnit in 'GameMenuUnit.pas' {GameMenuForm},
+  DMUnit in 'DMUnit.pas' {DM: TDataModule},
+  SettingsManagerUnit in 'SettingsManagerUnit.pas';
+
+{$R *.res}
+
+begin
+  Application.Initialize;
+  Application.MainFormOnTaskbar := True;
+  Application.CreateForm(TDM, DM);
+  Application.CreateForm(TMainMenuForm, MainMenuForm);
+  Application.CreateForm(TSettingsForm, SettingsForm);
+  Application.CreateForm(TCreditsForm, CreditsForm);
+  Application.CreateForm(TGameMenuForm, GameMenuForm);
+  Application.Run;
+end.

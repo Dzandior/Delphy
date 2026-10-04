@@ -1,0 +1,85 @@
+unit GameMenuUnit;
+
+interface
+
+uses
+  Winapi.Windows, Winapi.Messages, System.SysUtils, System.Classes,
+  Vcl.Graphics, Vcl.Controls, Vcl.Forms, Vcl.ExtCtrls, JPEG,
+  DMUnit, SettingsManagerUnit, Vcl.StdCtrls, CustomImageButton;
+
+type
+  TGameMenuForm = class(TForm)
+    ImageBackground: TImage;
+    lblTitle: TLabel;
+    BtnLevel1: TCustomImageButton;
+    BtnLevel2: TCustomImageButton;
+    BtnLevel3: TCustomImageButton;
+    BtnLevel4: TCustomImageButton;
+    BtnBack: TCustomImageButton;
+    procedure FormCreate(Sender: TObject);
+    procedure FormClose(Sender: TObject; var Action: TCloseAction);
+    procedure BtnLevel1Click(Sender: TObject);
+    procedure BtnLevel2Click(Sender: TObject);
+    procedure BtnLevel3Click(Sender: TObject);
+    procedure BtnLevel4Click(Sender: TObject);
+  public
+    SettingsFilePath: string;
+    GameSettings: TGameSettings;
+  end;
+
+var
+  GameMenuForm: TGameMenuForm;
+
+implementation
+
+{$R *.dfm}
+
+uses MainMenuUnit;
+
+procedure TGameMenuForm.FormCreate(Sender: TObject);
+begin
+  SettingsFilePath := IncludeTrailingPathDelimiter(
+    ExtractFilePath(ParamStr(0))
+  ) + 'settings.ini';
+  LoadSettings(GameSettings, SettingsFilePath);
+
+  ImageBackground.Picture.LoadFromFile(
+    ExtractFilePath(ParamStr(0)) + 'resources\images\background\2.jpg'
+  );
+  ImageBackground.SendToBack;
+
+  DM.StopMusic;
+end;
+
+procedure TGameMenuForm.BtnLevel1Click(Sender: TObject);
+begin
+  DM.PlayClickSound;
+  DM.StopMusic;
+end;
+
+procedure TGameMenuForm.BtnLevel2Click(Sender: TObject);
+begin
+  DM.PlayClickSound;
+  DM.StopMusic;
+end;
+
+procedure TGameMenuForm.BtnLevel3Click(Sender: TObject);
+begin
+  DM.PlayClickSound;
+  DM.StopMusic;
+end;
+
+procedure TGameMenuForm.BtnLevel4Click(Sender: TObject);
+begin
+  DM.PlayClickSound;
+  DM.StopMusic;
+end;
+
+procedure TGameMenuForm.FormClose(Sender: TObject; var Action: TCloseAction);
+begin
+  Action := caFree;
+  GameMenuForm := nil;
+  MainMenuForm.Show;
+end;
+
+end.

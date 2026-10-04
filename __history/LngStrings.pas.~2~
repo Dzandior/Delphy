@@ -1,0 +1,20 @@
+unit LngStrings;
+
+interface
+
+resourcestring
+  rsPlay         = 'Играть';
+  rsSettings     = 'Настройки';
+  rsCredits      = 'Титры';
+  rsExit         = 'Выйти';
+  rsSoundTitle   = 'Настройки звука';
+  rsLangTitle    = 'Язык интерфейса';
+  rsDisplayTitle = 'Режим экрана';
+  rsSave         = 'Сохранить';
+  rsLoad         = 'Загрузить';
+  // … добавьте все остальные строки …
+
+implementation
+
+end.
+

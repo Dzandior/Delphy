@@ -1,0 +1,86 @@
+unit CreditsUnit;
+
+interface
+
+uses
+  System.SysUtils, System.Classes, Vcl.Forms, Vcl.Controls, Vcl.StdCtrls,
+  Vcl.ExtCtrls, JPEG, CustomImageButton, DMUnit, SettingsManagerUnit,
+  System.ImageList, Vcl.ImgList;
+
+type
+  TCreditsForm = class(TForm)
+    ImageBackground: TImage;
+    BtnBack: TCustomImageButton;
+    Label1: TLabel;
+    procedure FormCreate(Sender: TObject);
+    procedure BtnBackClick(Sender: TObject);
+    procedure FormClose(Sender: TObject; var Action: TCloseAction);
+  private
+    SettingsFilePath: string;
+    GameSettings: TGameSettings;
+    procedure ApplyDisplayMode(Mode: TDisplayMode);
+  end;
+
+var
+  CreditsForm: TCreditsForm;
+
+implementation
+
+{$R *.dfm}
+
+uses MainMenuUnit;
+
+procedure TCreditsForm.FormCreate(Sender: TObject);
+begin
+  DoubleBuffered := True;
+  BorderStyle := bsNone;
+
+  SettingsFilePath := IncludeTrailingPathDelimiter(
+    ExtractFilePath(ParamStr(0))
+  ) + 'settings.ini';
+  LoadSettings(GameSettings, SettingsFilePath);
+  ApplyDisplayMode(GameSettings.DisplayMode);
+
+  WindowState := wsMaximized;
+  ImageBackground.Picture.LoadFromFile(
+    ExtractFilePath(ParamStr(0)) + 'resources\images\background\3.jpg'
+  );
+  ImageBackground.SendToBack;
+end;
+
+procedure TCreditsForm.BtnBackClick(Sender: TObject);
+begin
+  DM.PlayClickSound;
+  Close;
+end;
+
+procedure TCreditsForm.FormClose(Sender: TObject; var Action: TCloseAction);
+begin
+  Action := caFree;
+  CreditsForm := nil;
+  MainMenuForm.Show;
+end;
+
+procedure TCreditsForm.ApplyDisplayMode(Mode: TDisplayMode);
+begin
+  case Mode of
+    dmFullscreen:
+      begin
+        BorderStyle := bsNone;
+        WindowState := wsMaximized;
+      end;
+    dmBorderless:
+      begin
+        BorderStyle := bsNone;
+        WindowState := wsNormal;
+      end;
+    dmWindowed:
+      begin
+        BorderStyle := bsSizeable;
+        WindowState := wsNormal;
+      end;
+  end;
+end;
+
+end.
+

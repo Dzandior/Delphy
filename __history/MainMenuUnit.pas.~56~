@@ -1,0 +1,121 @@
+unit MainMenuUnit;
+
+interface
+
+uses
+  System.SysUtils, System.Classes, Vcl.Forms, Vcl.Controls, Vcl.ExtCtrls, JPEG,
+  DMUnit, GameMenuUnit, SettingsUnit, CreditsUnit,
+  CustomImageButton, SettingsManagerUnit, Vcl.ImgList, System.ImageList;
+
+type
+  TMainMenuForm = class(TForm)
+    ImageBackground: TImage;
+    ButtonPlay: TCustomImageButton;
+    ButtonSettings: TCustomImageButton;
+    ButtonCredits: TCustomImageButton;
+    ButtonExit: TCustomImageButton;
+    ImageList1: TImageList;
+    procedure FormCreate(Sender: TObject);
+    procedure FormShow(Sender: TObject);
+    procedure ButtonPlayClick(Sender: TObject);
+    procedure ButtonSettingsClick(Sender: TObject);
+    procedure ButtonCreditsClick(Sender: TObject);
+    procedure ButtonExitClick(Sender: TObject);
+  public
+    GameSettings: TGameSettings;
+    SettingsFilePath: string;
+    procedure ApplyDisplayMode(Mode: TDisplayMode);
+  end;
+
+var
+  MainMenuForm: TMainMenuForm;
+
+implementation
+
+{$R *.dfm}
+
+procedure TMainMenuForm.FormCreate(Sender: TObject);
+begin
+  DoubleBuffered := True;
+  BorderStyle := bsNone;
+
+  SettingsFilePath := IncludeTrailingPathDelimiter(
+    ExtractFilePath(ParamStr(0))
+  ) + 'settings.ini';
+
+  LoadSettings(GameSettings, SettingsFilePath);
+  ApplyDisplayMode(GameSettings.DisplayMode);
+
+  WindowState := wsMaximized;
+  ImageBackground.Picture.LoadFromFile(
+    ExtractFilePath(ParamStr(0)) + 'resources\images\background\1.jpg'
+  );
+  ImageBackground.SendToBack;
+end;
+
+procedure TMainMenuForm.FormShow(Sender: TObject);
+begin
+  DM.FMusicVolume   := GameSettings.MusicVolume;
+  DM.FEffectsVolume := GameSettings.EffectsVolume;
+  DM.FMasterVolume  := GameSettings.MasterVolume;
+  DM.EnableClickSound(GameSettings.ClickSoundEnabled);
+  DM.PlayMusic;
+end;
+
+procedure TMainMenuForm.ButtonPlayClick(Sender: TObject);
+begin
+  DM.PlayClickSound;
+  DM.StopMusic;
+  Hide;
+  if not Assigned(GameMenuForm) then
+    GameMenuForm := TGameMenuForm.Create(Application);
+  GameMenuForm.Show;
+end;
+
+procedure TMainMenuForm.ButtonSettingsClick(Sender: TObject);
+begin
+  DM.PlayClickSound;
+  Hide;
+  if not Assigned(SettingsForm) then
+    SettingsForm := TSettingsForm.Create(Application);
+  SettingsForm.Show;
+end;
+
+procedure TMainMenuForm.ButtonCreditsClick(Sender: TObject);
+begin
+  DM.PlayClickSound;
+  Hide;
+  if not Assigned(CreditsForm) then
+    CreditsForm := TCreditsForm.Create(Application);
+  CreditsForm.Show;
+end;
+
+procedure TMainMenuForm.ButtonExitClick(Sender: TObject);
+begin
+  DM.PlayClickSound;
+  DM.StopMusic;
+  Application.Terminate;
+end;
+
+procedure TMainMenuForm.ApplyDisplayMode(Mode: TDisplayMode);
+begin
+  case Mode of
+    dmFullscreen:
+      begin
+        BorderStyle := bsNone;
+        WindowState := wsMaximized;
+      end;
+    dmBorderless:
+      begin
+        BorderStyle := bsNone;
+        WindowState := wsNormal;
+      end;
+    dmWindowed:
+      begin
+        BorderStyle := bsSizeable;
+        WindowState := wsNormal;
+      end;
+  end;
+end;
+
+end.

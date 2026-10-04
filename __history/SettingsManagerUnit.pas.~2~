@@ -1,0 +1,136 @@
+unit SettingsManagerUnit;
+
+interface
+
+uses
+  System.SysUtils, System.Classes, System.IniFiles;
+
+type
+  // Возможные языки интерфейса
+  TAppLanguage = (alRussian, alEnglish, alChinese);
+
+  // Режим окна
+  TDisplayMode = (dmFullscreen, dmBorderless, dmWindowed);
+
+  // Структура всех игровых настроек
+  TGameSettings = record
+    MusicVolume: Integer;        // 0..100
+    EffectsVolume: Integer;      // 0..100
+    MasterVolume: Integer;       // 0..100
+    ClickSoundEnabled: Boolean;  // звук клика кнопок
+    Language: TAppLanguage;      // язык интерфейса
+    DisplayMode: TDisplayMode;   // режим окна
+  end;
+
+procedure LoadSettings(var Settings: TGameSettings; const FileName: string);
+procedure SaveSettings(const Settings: TGameSettings; const FileName: string);
+
+// Вспомогательные преобразования
+function LangToStr(ALang: TAppLanguage): string;
+function StrToLang(const S: string): TAppLanguage;
+function DisplayModeToStr(AMode: TDisplayMode): string;
+function StrToDisplayMode(const S: string): TDisplayMode;
+
+implementation
+
+const
+  SECTION_Sound     = 'Sound';
+  SECTION_Interface = 'Interface';
+  SECTION_Display   = 'Display';
+
+procedure LoadSettings(var Settings: TGameSettings; const FileName: string);
+var
+  Ini: TIniFile;
+begin
+  // Значения по умолчанию
+  Settings.MusicVolume       := 80;
+  Settings.EffectsVolume     := 80;
+  Settings.MasterVolume      := 80;
+  Settings.ClickSoundEnabled := True;
+  Settings.Language          := alRussian;
+  Settings.DisplayMode       := dmFullscreen;
+
+  if not FileExists(FileName) then
+    Exit;
+
+  Ini := TIniFile.Create(FileName);
+  try
+    Settings.MusicVolume       := Ini.ReadInteger (SECTION_Sound,     'MusicVolume',       Settings.MusicVolume);
+    Settings.EffectsVolume     := Ini.ReadInteger (SECTION_Sound,     'EffectsVolume',     Settings.EffectsVolume);
+    Settings.MasterVolume      := Ini.ReadInteger (SECTION_Sound,     'MasterVolume',      Settings.MasterVolume);
+    Settings.ClickSoundEnabled := Ini.ReadBool    (SECTION_Sound,     'ClickSoundEnabled', Settings.ClickSoundEnabled);
+
+    Settings.Language    := StrToLang(
+      Ini.ReadString(SECTION_Interface, 'Language', LangToStr(Settings.Language))
+    );
+
+    Settings.DisplayMode := StrToDisplayMode(
+      Ini.ReadString(SECTION_Display,   'DisplayMode', DisplayModeToStr(Settings.DisplayMode))
+    );
+  finally
+    Ini.Free;
+  end;
+end;
+
+procedure SaveSettings(const Settings: TGameSettings; const FileName: string);
+var
+  Ini: TIniFile;
+begin
+  Ini := TIniFile.Create(FileName);
+  try
+    Ini.WriteInteger(SECTION_Sound,     'MusicVolume',       Settings.MusicVolume);
+    Ini.WriteInteger(SECTION_Sound,     'EffectsVolume',     Settings.EffectsVolume);
+    Ini.WriteInteger(SECTION_Sound,     'MasterVolume',      Settings.MasterVolume);
+    Ini.WriteBool   (SECTION_Sound,     'ClickSoundEnabled', Settings.ClickSoundEnabled);
+
+    Ini.WriteString(SECTION_Interface, 'Language',    LangToStr(Settings.Language));
+    Ini.WriteString(SECTION_Display,   'DisplayMode', DisplayModeToStr(Settings.DisplayMode));
+  finally
+    Ini.Free;
+  end;
+end;
+
+function LangToStr(ALang: TAppLanguage): string;
+begin
+  case ALang of
+    alRussian: Result := 'Russian';
+    alEnglish: Result := 'English';
+    alChinese: Result := 'Chinese';
+  else
+    Result := 'Russian';
+  end;
+end;
+
+function StrToLang(const S: string): TAppLanguage;
+begin
+  if SameText(S, 'English') then
+    Exit(alEnglish)
+  else if SameText(S, 'Chinese') then
+    Exit(alChinese)
+  else
+    Exit(alRussian);
+end;
+
+function DisplayModeToStr(AMode: TDisplayMode): string;
+begin
+  case AMode of
+    dmFullscreen: Result := 'Fullscreen';
+    dmBorderless: Result := 'Borderless';
+    dmWindowed:   Result := 'Windowed';
+  else
+    Result := 'Fullscreen';
+  end;
+end;
+
+function StrToDisplayMode(const S: string): TDisplayMode;
+begin
+  if SameText(S, 'Borderless') then
+    Exit(dmBorderless)
+  else if SameText(S, 'Windowed') then
+    Exit(dmWindowed)
+  else
+    Exit(dmFullscreen);
+end;
+
+end.
+

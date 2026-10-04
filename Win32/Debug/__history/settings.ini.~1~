@@ -1,0 +1,9 @@
+[Sound]
+MusicVolume=10
+EffectsVolume=8
+MasterVolume=4
+ClickSoundEnabled=1
+[Interface]
+Language=Chinese
+[Display]
+DisplayMode=Borderless

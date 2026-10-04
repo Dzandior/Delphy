@@ -1,0 +1,31 @@
+object GameLevelForm: TGameLevelForm
+  Left = 0
+  Top = 0
+  BorderStyle = bsNone
+  Caption = 'TowerDefense'
+  ClientHeight = 759
+  ClientWidth = 720
+  Color = clBtnFace
+  DoubleBuffered = True
+  Font.Charset = DEFAULT_CHARSET
+  Font.Color = clWindowText
+  Font.Height = -12
+  Font.Name = 'Segoe UI'
+  Font.Style = []
+  Position = poScreenCenter
+  OnClose = FormClose
+  OnCreate = FormCreate
+  OnShow = FormShow
+  TextHeight = 15
+  object imgmap: TImage
+    Left = 0
+    Top = 80
+    Width = 640
+    Height = 640
+    Align = alCustom
+  end
+  object Timer: TTimer
+    Left = 536
+    Top = 520
+  end
+end

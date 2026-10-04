@@ -1,0 +1,7 @@
+[Sound]
+MusicVolume=8
+EffectsVolume=5
+MasterVolume=7
+ClickSoundEnabled=1
+[Game]
+Difficulty=Easy

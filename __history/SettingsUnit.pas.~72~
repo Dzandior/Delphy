@@ -1,0 +1,136 @@
+﻿unit SettingsUnit;
+
+interface
+
+uses
+  System.SysUtils, System.Classes, Vcl.Forms, Vcl.Controls, Vcl.StdCtrls,
+  Vcl.ExtCtrls, JPEG, DMUnit, CustomImageButton,
+  Vcl.ImgList, SettingsManagerUnit, Vcl.ComCtrls;
+
+type
+  TSettingsForm = class(TForm)
+    lblSoundTitle: TLabel;
+    ImageBackground: TImage;
+    TrackMusic: TTrackBar;
+    TrackEffects: TTrackBar;
+    TrackMaster: TTrackBar;
+    ChkClickSound: TCheckBox;
+    BtnSave: TCustomImageButton;
+    BtnLoad: TCustomImageButton;
+    BtnBack: TCustomImageButton;
+    Labelmusic: TLabel;
+    Labelsounds: TLabel;
+    Labelgeneral: TLabel;
+    lblDifficulty: TLabel;
+    CmbDifficulty: TComboBox;
+    procedure FormCreate(Sender: TObject);
+    procedure TrackMusicChange(Sender: TObject);
+    procedure TrackEffectsChange(Sender: TObject);
+    procedure TrackMasterChange(Sender: TObject);
+    procedure ChkClickSoundClick(Sender: TObject);
+    procedure CmbDifficultyChange(Sender: TObject);
+    procedure BtnSaveClick(Sender: TObject);
+    procedure BtnLoadClick(Sender: TObject);
+    procedure BtnBackClick(Sender: TObject);
+    procedure FormClose(Sender: TObject; var Action: TCloseAction);
+  private
+    Settings: TGameSettings;
+    SettingsFilePath: string;
+  end;
+
+var
+  SettingsForm: TSettingsForm;
+
+implementation
+
+uses MainMenuUnit, GameMenuUnit, HowToPlayUnit;
+{$R *.dfm}
+
+procedure TSettingsForm.FormCreate(Sender: TObject);
+begin
+  DoubleBuffered := True; // Включаем двойную буферизацию
+  // BorderStyle, Position, Width, Height заданы в Object Inspector (bsNone, poScreenCenter, 1120, 740)
+
+  SettingsFilePath := IncludeTrailingPathDelimiter(
+    ExtractFilePath(ParamStr(0))
+  ) + 'settings.ini';
+
+  LoadSettings(Settings, SettingsFilePath);
+
+  ImageBackground.Picture.LoadFromFile(
+    ExtractFilePath(ParamStr(0)) + 'resources\images\background\4.png'
+  );
+  ImageBackground.SendToBack;
+
+  // Инициализация UI
+  TrackMusic.Position := Settings.MusicVolume;
+  TrackEffects.Position := Settings.EffectsVolume;
+  TrackMaster.Position := Settings.MasterVolume;
+  ChkClickSound.Checked := Settings.ClickSoundEnabled;
+  CmbDifficulty.Items.Text := 'Лёгкий'#13#10'Средний'#13#10'Тяжёлый';
+  CmbDifficulty.Style := csDropDownList;
+  CmbDifficulty.ItemIndex := Ord(Settings.Difficulty);
+
+  // Применяем настройки звука
+  DM.SetMusicVolume(Settings.MusicVolume);
+  DM.SetEffectsVolume(Settings.EffectsVolume);
+  DM.SetMasterVolume(Settings.MasterVolume);
+  DM.EnableClickSound(Settings.ClickSoundEnabled);
+end;
+
+procedure TSettingsForm.CmbDifficultyChange(Sender: TObject);
+begin
+  Settings.Difficulty := TDifficultyLevel(CmbDifficulty.ItemIndex);
+end;
+
+procedure TSettingsForm.TrackMusicChange(Sender: TObject);
+begin
+  DM.SetMusicVolume(TrackMusic.Position);
+end;
+
+procedure TSettingsForm.TrackEffectsChange(Sender: TObject);
+begin
+  DM.SetEffectsVolume(TrackEffects.Position);
+end;
+
+procedure TSettingsForm.TrackMasterChange(Sender: TObject);
+begin
+  DM.SetMasterVolume(TrackMaster.Position);
+end;
+
+procedure TSettingsForm.ChkClickSoundClick(Sender: TObject);
+begin
+  DM.EnableClickSound(ChkClickSound.Checked);
+end;
+
+procedure TSettingsForm.BtnSaveClick(Sender: TObject);
+begin
+  Settings.MusicVolume := TrackMusic.Position;
+  Settings.EffectsVolume := TrackEffects.Position;
+  Settings.MasterVolume := TrackMaster.Position;
+  Settings.ClickSoundEnabled := ChkClickSound.Checked;
+  Settings.Difficulty := TDifficultyLevel(CmbDifficulty.ItemIndex);
+
+  SaveSettings(Settings, SettingsFilePath);
+end;
+
+procedure TSettingsForm.BtnLoadClick(Sender: TObject);
+begin
+  LoadSettings(Settings, SettingsFilePath);
+  FormCreate(Self);
+end;
+
+procedure TSettingsForm.BtnBackClick(Sender: TObject);
+begin
+  DM.PlayClickSound;
+  Close;
+end;
+
+procedure TSettingsForm.FormClose(Sender: TObject; var Action: TCloseAction);
+begin
+  Action := caFree;
+  SettingsForm := nil;
+  MainMenuForm.Show
+end;
+
+end.

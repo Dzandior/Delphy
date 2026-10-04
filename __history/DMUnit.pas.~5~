@@ -1,0 +1,78 @@
+unit DMUnit;
+
+interface
+
+uses
+  System.SysUtils, System.Classes, Winapi.Windows, MMSystem;
+
+type
+  TDM = class(TDataModule)
+  private
+    const
+      AliasName     = 'bgMusic';
+      MusicFile     = 'resources\music\background.mp3';
+      ClickSoundFile= 'resources\sounds\click.wav';
+    procedure SendCmd(const Cmd: string);
+  public
+    procedure PlayMusic;
+    procedure StopMusic;
+    procedure PlayClickSound;  // <-- новая
+  end;
+
+var
+  DM: TDM;
+  FIsPlaying: Boolean;
+
+implementation
+
+{%CLASSGROUP 'Vcl.Controls.TControl'}
+{$R *.dfm}
+
+procedure TDM.SendCmd(const Cmd: string);
+begin
+  mciSendString(PChar(Cmd), nil, 0, 0);
+end;
+
+procedure TDM.PlayMusic;
+var
+  Path: string;
+begin
+  // Если уже играет — выходим, не перезапуская
+  if FIsPlaying then
+    Exit;
+
+  Path := IncludeTrailingPathDelimiter(ExtractFilePath(ParamStr(0))) +
+          'resources\music\background.mp3';
+  if not FileExists(Path) then
+    Exit;  // или выдайте ошибку
+
+  // Открываем и запускаем в цикл
+  SendCmd('open "' + Path + '" alias bgMusic');
+  SendCmd('play bgMusic repeat');
+
+  FIsPlaying := True;
+end;
+
+procedure TDM.StopMusic;
+begin
+  if not FIsPlaying then
+    Exit;
+
+  SendCmd('stop bgMusic');
+  SendCmd('close bgMusic');
+  FIsPlaying := False;
+end;
+
+procedure TDM.PlayClickSound;
+var
+  Path: string;
+begin
+  Path := IncludeTrailingPathDelimiter(
+            ExtractFilePath(ParamStr(0))
+          ) + ClickSoundFile;
+  if FileExists(Path) then
+    PlaySound(PChar(Path), 0, SND_ASYNC or SND_FILENAME);
+end;
+
+end.
+

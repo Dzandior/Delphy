@@ -1,0 +1,49 @@
+unit MusicManager;
+
+interface
+
+uses
+  Winapi.Windows, System.SysUtils, MMSystem;
+
+type
+  TMusicManager = class
+  private
+    const
+      AliasName = 'bgMusic';
+      MusicFile = 'resources\music\background.mp3';
+  public
+    procedure Play;    // запустить (или перезапустить) музыку
+    procedure Stop;    // остановить музыку
+  end;
+
+implementation
+
+procedure TMusicManager.Play;
+var
+  cmd, path: string;
+begin
+  // Формируем абсолютный путь на основе папки с EXE
+  path := IncludeTrailingPathDelimiter(
+            ExtractFilePath(ParamStr(0))
+          ) + MusicFile;
+
+  // Если уже был открыт — сначала закроем
+  mciSendString(PChar('close ' + AliasName), nil, 0, 0);
+
+  // Открываем MP3-файл под псевдонимом
+  cmd := Format('open "%s" type MPEGVideo alias %s', [path, AliasName]);
+  mciSendString(PChar(cmd), nil, 0, 0);
+
+  // Запускаем с повтором
+  mciSendString(PChar('play ' + AliasName + ' repeat'), nil, 0, 0);
+end;
+
+procedure TMusicManager.Stop;
+begin
+  // Останавливаем и закрываем MCI-сессию
+  mciSendString(PChar('stop ' + AliasName), nil, 0, 0);
+  mciSendString(PChar('close ' + AliasName), nil, 0, 0);
+end;
+
+end.
+

@@ -1,0 +1,50 @@
+unit HoverEffectsUnit;
+
+interface
+
+uses
+  Vcl.Forms, Vcl.Buttons, System.Classes, Vcl.Graphics;
+
+procedure AssignHoverToSpeedButtons(AForm: TForm);
+
+implementation
+
+procedure SpeedButtonMouseEnter(Sender: TObject);
+begin
+  if Sender is TSpeedButton then
+    with TSpeedButton(Sender) do
+    begin
+      // Полужирный + курсив, синий текст
+      Font.Style := [fsBold, fsItalic];
+      Font.Color := clBlue;
+      // рамка при Flat=True отрисуется автоматически
+    end;
+end;
+
+procedure SpeedButtonMouseLeave(Sender: TObject);
+begin
+  if Sender is TSpeedButton then
+    with TSpeedButton(Sender) do
+    begin
+      // Сброс стиля на обычный
+      Font.Style := [];
+      Font.Color := clBtnText;
+      // рамка пропадёт автоматически (Flat=True)
+    end;
+end;
+
+procedure AssignHoverToSpeedButtons(AForm: TForm);
+var
+  i: Integer;
+begin
+  for i := 0 to AForm.ComponentCount - 1 do
+    if AForm.Components[i] is TSpeedButton then
+      with TSpeedButton(AForm.Components[i]) do
+      begin
+        OnMouseEnter := SpeedButtonMouseEnter;
+        OnMouseLeave := SpeedButtonMouseLeave;
+      end;
+end;
+
+end.
+

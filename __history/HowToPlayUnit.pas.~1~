@@ -1,0 +1,58 @@
+unit HowToPlayUnit;
+
+interface
+
+uses
+  System.SysUtils, System.Classes, Vcl.Forms, Vcl.Controls, Vcl.StdCtrls,
+  Vcl.ExtCtrls, JPEG, CustomImageButton, DMUnit, SettingsManagerUnit,
+  Vcl.ImgList, System.ImageList;
+
+type
+  THowToPlayForm = class(TForm)
+    ImageBackground: TImage;
+    BtnBack: TCustomImageButton;
+    Label1: TLabel;
+    procedure FormCreate(Sender: TObject);
+    procedure BtnBackClick(Sender: TObject);
+    procedure FormClose(Sender: TObject; var Action: TCloseAction);
+  public
+    SettingsFilePath: string;
+    GameSettings: TGameSettings;
+  end;
+
+var
+  HowToPlayForm: THowToPlayForm;
+
+implementation
+
+{$R *.dfm}
+
+uses MainMenuUnit;
+
+procedure THowToPlayForm.FormCreate(Sender: TObject);
+begin
+  SettingsFilePath := IncludeTrailingPathDelimiter(
+    ExtractFilePath(ParamStr(0))
+  ) + 'settings.ini';
+  LoadSettings(GameSettings, SettingsFilePath);
+
+  ImageBackground.Picture.LoadFromFile(
+    ExtractFilePath(ParamStr(0)) + 'resources\images\background\3.jpg'
+  );
+  ImageBackground.SendToBack;
+end;
+
+procedure THowToPlayForm.BtnBackClick(Sender: TObject);
+begin
+  DM.PlayClickSound;
+  Close;
+end;
+
+procedure THowToPlayForm.FormClose(Sender: TObject; var Action: TCloseAction);
+begin
+  Action := caFree;
+  HowToPlayForm := nil;
+  MainMenuForm.Show;
+end;
+
+end.

@@ -1,0 +1,112 @@
+object GameMenuForm: TGameMenuForm
+  Left = 0
+  Top = 0
+  BorderStyle = bsNone
+  Caption = 'Aegimora'
+  ClientHeight = 740
+  ClientWidth = 1120
+  Color = clBtnFace
+  DoubleBuffered = True
+  Font.Charset = DEFAULT_CHARSET
+  Font.Color = clWindowText
+  Font.Height = -12
+  Font.Name = 'Segoe UI'
+  Font.Style = []
+  Position = poScreenCenter
+  OnCreate = FormCreate
+  TextHeight = 15
+  object ImageBackground: TImage
+    Left = 0
+    Top = 0
+    Width = 1120
+    Height = 740
+    Align = alClient
+    Stretch = True
+    ExplicitLeft = 272
+    ExplicitTop = 192
+    ExplicitWidth = 105
+    ExplicitHeight = 105
+  end
+  object lblTitle: TLabel
+    Left = 460
+    Top = 80
+    Width = 200
+    Height = 30
+    AutoSize = False
+    Caption = #1042#1099#1073#1077#1088#1080#1090#1077' '#1091#1088#1086#1074#1077#1085#1100
+    Font.Charset = DEFAULT_CHARSET
+    Font.Color = clWindowText
+    Font.Height = -21
+    Font.Name = 'Segoe UI'
+    Font.Style = [fsBold]
+    ParentFont = False
+  end
+  object BtnLevel1: TCustomImageButton
+    Left = 280
+    Top = 200
+    Width = 160
+    Height = 85
+    ImageList = MainMenuForm.ImageList1
+    NormalIndex = 0
+    HoverIndex = 1
+    DownIndex = 2
+    Caption = '1'
+    Font.Charset = DEFAULT_CHARSET
+    Font.Color = clWindowText
+    Font.Height = -19
+    Font.Name = 'Segoe UI'
+    Font.Style = []
+    OnClick = BtnLevel1Click
+  end
+  object BtnLevel2: TCustomImageButton
+    Left = 680
+    Top = 200
+    Width = 160
+    Height = 85
+    ImageList = MainMenuForm.ImageList1
+    NormalIndex = 0
+    HoverIndex = 1
+    DownIndex = 2
+    Caption = '2'
+    Font.Charset = DEFAULT_CHARSET
+    Font.Color = clWindowText
+    Font.Height = -19
+    Font.Name = 'Segoe UI'
+    Font.Style = []
+    OnClick = BtnLevel2Click
+  end
+  object BtnLevel3: TCustomImageButton
+    Left = 280
+    Top = 400
+    Width = 160
+    Height = 85
+    ImageList = MainMenuForm.ImageList1
+    NormalIndex = 0
+    HoverIndex = 1
+    DownIndex = 2
+    Caption = '3'
+    Font.Charset = DEFAULT_CHARSET
+    Font.Color = clWindowText
+    Font.Height = -19
+    Font.Name = 'Segoe UI'
+    Font.Style = []
+    OnClick = BtnLevel3Click
+  end
+  object BtnLevel4: TCustomImageButton
+    Left = 680
+    Top = 400
+    Width = 160
+    Height = 85
+    ImageList = MainMenuForm.ImageList1
+    NormalIndex = 0
+    HoverIndex = 1
+    DownIndex = 2
+    Caption = '4'
+    Font.Charset = DEFAULT_CHARSET
+    Font.Color = clWindowText
+    Font.Height = -19
+    Font.Name = 'Segoe UI'
+    Font.Style = []
+    OnClick = BtnLevel4Click
+  end
+end

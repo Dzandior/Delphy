@@ -1,0 +1,27 @@
+program TowerDefense;
+
+uses
+  Vcl.Forms,
+  Vcl.ImgList,
+  System.SysUtils,
+  MainMenuUnit in 'MainMenuUnit.pas' {MainMenuForm},
+  SettingsUnit in 'SettingsUnit.pas' {SettingsForm},
+  HowToPlayUnit in 'HowToPlayUnit.pas' {HowToPlayForm},
+  GameMenuUnit in 'GameMenuUnit.pas' {GameMenuForm},
+  DMUnit in 'DMUnit.pas' {DM: TDataModule},
+  SettingsManagerUnit in 'SettingsManagerUnit.pas',
+  CustomImageButton in 'CustomImageButton.pas',
+  GameLevelUnit in 'GameLevelUnit.pas' {GameLevelForm};
+
+{$R *.res}
+
+begin
+  Application.Initialize;
+  Application.MainFormOnTaskbar := True;
+  Application.CreateForm(TMainMenuForm, MainMenuForm);
+  Application.CreateForm(TDM, DM);
+  Application.CreateForm(TSettingsForm, SettingsForm);
+  Application.CreateForm(TGameMenuForm, GameMenuForm);
+  Application.CreateForm(THowToPlayForm, HowToPlayForm);
+  Application.Run;
+end.

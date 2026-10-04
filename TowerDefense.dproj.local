@@ -1,0 +1,87 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<BorlandProject>
+	<Transactions>
+    <Transaction>1899.12.30 00:00:00.000.584,D:\delphi_kurswork\TowerDefense.dproj=D:\delphi_kurswork\TowerDefense.dproj</Transaction>
+    <Transaction>1899.12.30 00:00:00.000.562,D:\delphi_kurswork\TowerDefense.dproj=D:\delphi_kurswork\TowerDefense.dproj</Transaction>
+    <Transaction>1899.12.30 00:00:00.000.438,D:\delphi_kurswork\TowerDefense.dproj=D:\delphi_kurswork\TowerDefense.dproj</Transaction>
+    <Transaction>1899.12.30 00:00:00.000.650,D:\delphi_kurswork\Win32\Debug\settings.ini=</Transaction>
+    <Transaction>1899.12.30 00:00:00.000.784,=D:\delphi_kurswork\Unit1.pas</Transaction>
+    <Transaction>1899.12.30 00:00:00.000.801,=D:\delphi_kurswork\Unit1.pas</Transaction>
+    <Transaction>1899.12.30 00:00:00.000.605,=D:\delphi_kurswork\Unit1.pas</Transaction>
+    <Transaction>1899.12.30 00:00:00.000.582,=D:\delphi_kurswork\Unit1.pas</Transaction>
+    <Transaction>1899.12.30 00:00:00.000.638,D:\delphi projects\Unit5.pas=D:\delphi projects\CreditsUnit.pas</Transaction>
+    <Transaction>1899.12.30 00:00:00.000.067,=D:\delphi projects\Unit5.pas</Transaction>
+    <Transaction>1899.12.30 00:00:00.000.601,=E:\1\CustomImageButton.pas</Transaction>
+    <Transaction>1899.12.30 00:00:00.000.646,E:\1\CustomImageButton.pas=</Transaction>
+    <Transaction>1899.12.30 00:00:00.000.146,=D:\delphi_kurswork\Win32\Debug\settings.ini</Transaction>
+    <Transaction>1899.12.30 00:00:00.000.381,D:\delphi_kurswork\Win32\Debug\settings.ini=</Transaction>
+    <Transaction>1899.12.30 00:00:00.000.728,=D:\delphi_kurswork\Win32\Debug\settings.ini</Transaction>
+    <Transaction>1899.12.30 00:00:00.000.117,D:\delphi_kurswork\MusicManager.pas=D:\delphi_kurswork\Unit1.pas</Transaction>
+    <Transaction>1899.12.30 00:00:00.000.435,=D:\delphi_kurswork\Unit1.pas</Transaction>
+    <Transaction>1899.12.30 00:00:00.000.821,=D:\delphi projects\Unit3.pas</Transaction>
+    <Transaction>1899.12.30 00:00:00.000.220,=D:\delphi projects\Unit3.pas</Transaction>
+    <Transaction>1899.12.30 00:00:00.000.785,=D:\delphi projects\Unit3.pas</Transaction>
+    <Transaction>1899.12.30 00:00:00.000.866,=D:\delphi projects\Unit3.pas</Transaction>
+    <Transaction>1899.12.30 00:00:00.000.017,D:\delphi projects\Unit3.pas=D:\delphi projects\MainMenuUnit.pas</Transaction>
+    <Transaction>1899.12.30 00:00:00.000.458,=D:\delphi projects\Unit3.pas</Transaction>
+    <Transaction>1899.12.30 00:00:00.000.208,=D:\delphi projects\Unit3.pas</Transaction>
+    <Transaction>1899.12.30 00:00:00.000.635,=D:\delphi projects\Unit3.pas</Transaction>
+    <Transaction>1899.12.30 00:00:00.000.265,D:\delphi_kurswork\Unit1.pas=D:\delphi_kurswork\LngStrings.pas</Transaction>
+    <Transaction>1899.12.30 00:00:00.000.691,=D:\delphi_kurswork\Unit1.pas</Transaction>
+    <Transaction>1899.12.30 00:00:00.000.490,=D:\delphi_kurswork\Unit1.pas</Transaction>
+    <Transaction>1899.12.30 00:00:00.000.891,=D:\delphi_kurswork\Unit1.pas</Transaction>
+    <Transaction>1899.12.30 00:00:00.000.457,=D:\delphi projects\Unit3.pas</Transaction>
+    <Transaction>1899.12.30 00:00:00.000.914,D:\delphi projects\CreditsUnit.dfm=D:\delphi_kurswork\CreditsUnit.dfm</Transaction>
+    <Transaction>1899.12.30 00:00:00.000.370,D:\delphi projects\Project2.dproj=D:\delphi projects\TowerDefense.dproj</Transaction>
+    <Transaction>1899.12.30 00:00:00.000.711,D:\delphi_kurswork\Unit1.pas=D:\delphi_kurswork\DMUnit.pas</Transaction>
+    <Transaction>1899.12.30 00:00:00.000.287,D:\delphi projects\Unit4.dfm=D:\delphi projects\SettingsUnit.dfm</Transaction>
+    <Transaction>1899.12.30 00:00:00.000.396,D:\delphi projects\SettingsUnit.dfm=D:\delphi_kurswork\SettingsUnit.dfm</Transaction>
+    <Transaction>1899.12.30 00:00:00.000.449,D:\delphi projects\TowerDefense.dproj=D:\delphi_kurswork\TowerDefense.dproj</Transaction>
+    <Transaction>1899.12.30 00:00:00.000.033,D:\delphi projects\MainMenuUnit.pas=D:\delphi_kurswork\MainMenuUnit.pas</Transaction>
+    <Transaction>1899.12.30 00:00:00.000.375,=E:\saves\delphi_kurswork(vcl_menu)\CustomImageButton.pas</Transaction>
+    <Transaction>1899.12.30 00:00:00.000.638,D:\delphi projects\Unit5.dfm=D:\delphi projects\CreditsUnit.dfm</Transaction>
+    <Transaction>1899.12.30 00:00:00.000.623,E:\saves\delphi_kurswork(vcl_menu)\CreditsUnit.pas=E:\saves\delphi_kurswork(vcl_menu)\HowTopPlayUnit.pas</Transaction>
+    <Transaction>1899.12.30 00:00:00.000.033,D:\delphi projects\MainMenuUnit.dfm=D:\delphi_kurswork\MainMenuUnit.dfm</Transaction>
+    <Transaction>1899.12.30 00:00:00.000.041,D:\delphi projects\Unit6.pas=D:\delphi projects\GameMenuUnit.pas</Transaction>
+    <Transaction>1899.12.30 00:00:00.000.144,=D:\delphi projects\Unit6.pas</Transaction>
+    <Transaction>1899.12.30 00:00:00.000.017,D:\delphi projects\Unit3.dfm=D:\delphi projects\MainMenuUnit.dfm</Transaction>
+    <Transaction>1899.12.30 00:00:00.000.516,E:\saves\delphi_kurswork(vcl_menu)\HowTopPlayUnit.pas=E:\saves\delphi_kurswork(vcl_menu)\HowToPlayUnit.pas</Transaction>
+    <Transaction>1899.12.30 00:00:00.000.862,D:\delphi_kurswork\LayoutUtils.pas=</Transaction>
+    <Transaction>1899.12.30 00:00:00.000.597,D:\delphi_kurswork\LayoutUtils.pas=D:\delphi_kurswork\Unit1.pas</Transaction>
+    <Transaction>1899.12.30 00:00:00.000.289,D:\delphi_kurswork\SettingsManager.pas=D:\delphi_kurswork\Unit1.pas</Transaction>
+    <Transaction>1899.12.30 00:00:00.000.833,E:\saves\delphi_kurswork(vcl_menu)\Unit1.dfm=E:\saves\delphi_kurswork(vcl_menu)\GameLevelUnit.dfm</Transaction>
+    <Transaction>1899.12.30 00:00:00.000.342,D:\delphi projects\GameMenuUnit.pas=D:\delphi_kurswork\GameMenuUnit.pas</Transaction>
+    <Transaction>1899.12.30 00:00:00.000.342,D:\delphi projects\GameMenuUnit.dfm=D:\delphi_kurswork\GameMenuUnit.dfm</Transaction>
+    <Transaction>1899.12.30 00:00:00.000.732,E:\saves\delphi_kurswork(vcl_menu)\Win32\Debug\settings.ini=</Transaction>
+    <Transaction>1899.12.30 00:00:00.000.075,=E:\saves\delphi_kurswork(vcl_menu)\Win32\Debug\settings.ini</Transaction>
+    <Transaction>1899.12.30 00:00:00.000.396,D:\delphi projects\SettingsUnit.pas=D:\delphi_kurswork\SettingsUnit.pas</Transaction>
+    <Transaction>1899.12.30 00:00:00.000.516,E:\saves\delphi_kurswork(vcl_menu)\HowTopPlayUnit.dfm=E:\saves\delphi_kurswork(vcl_menu)\HowToPlayUnit.dfm</Transaction>
+    <Transaction>1899.12.30 00:00:00.000.272,D:\delphi_kurswork\SettingsManagerUnit.pas=D:\delphi_kurswork\SettingsManager.pas</Transaction>
+    <Transaction>1899.12.30 00:00:00.000.716,D:\delphi_kurswork\HoverEffectsUnit.pas=</Transaction>
+    <Transaction>1899.12.30 00:00:00.000.676,D:\delphi_kurswork\HoverEffectsUnit.pas=D:\delphi_kurswork\Unit1.pas</Transaction>
+    <Transaction>1899.12.30 00:00:00.000.914,D:\delphi projects\CreditsUnit.pas=D:\delphi_kurswork\CreditsUnit.pas</Transaction>
+    <Transaction>1899.12.30 00:00:00.000.711,D:\delphi_kurswork\Unit1.dfm=D:\delphi_kurswork\DMUnit.dfm</Transaction>
+    <Transaction>1899.12.30 00:00:00.000.041,D:\delphi projects\Unit6.dfm=D:\delphi projects\GameMenuUnit.dfm</Transaction>
+    <Transaction>1899.12.30 00:00:00.000.623,E:\saves\delphi_kurswork(vcl_menu)\CreditsUnit.dfm=E:\saves\delphi_kurswork(vcl_menu)\HowTopPlayUnit.dfm</Transaction>
+    <Transaction>1899.12.30 00:00:00.000.847,=E:\saves\delphi_kurswork(vcl_menu)\Unit1.pas</Transaction>
+    <Transaction>1899.12.30 00:00:00.000.833,E:\saves\delphi_kurswork(vcl_menu)\Unit1.pas=E:\saves\delphi_kurswork(vcl_menu)\GameLevelUnit.pas</Transaction>
+    <Transaction>1899.12.30 00:00:00.000.832,=D:\delphi projects\Unit4.pas</Transaction>
+    <Transaction>1899.12.30 00:00:00.000.287,D:\delphi projects\Unit4.pas=D:\delphi projects\SettingsUnit.pas</Transaction>
+  </Transactions>
+	<ProjectSortOrder AutoSort="0" SortType="0">
+    <File Path="MainMenuUnit.pas"/>
+    <File Path="MainMenuUnit.dfm"/>
+    <File Path="SettingsUnit.pas"/>
+    <File Path="SettingsUnit.dfm"/>
+    <File Path="HowToPlayUnit.pas"/>
+    <File Path="HowToPlayUnit.dfm"/>
+    <File Path="GameMenuUnit.pas"/>
+    <File Path="GameMenuUnit.dfm"/>
+    <File Path="DMUnit.pas"/>
+    <File Path="DMUnit.dfm"/>
+    <File Path="SettingsManagerUnit.pas"/>
+    <File Path="CustomImageButton.pas"/>
+    <File Path="GameLevelUnit.pas"/>
+    <File Path="GameLevelUnit.dfm"/>
+  </ProjectSortOrder>
+</BorlandProject>

@@ -1,0 +1,97 @@
+unit CreditsUnit;
+
+interface
+
+uses
+  System.SysUtils, System.Classes, Vcl.Forms, Vcl.Controls, Vcl.StdCtrls,
+  Vcl.ExtCtrls, JPEG, CustomImageButton, DMUnit, SettingsManagerUnit,
+  Vcl.ImgList, System.ImageList,LngStrings;
+
+type
+  TCreditsForm = class(TForm)
+    ImageBackground: TImage;
+    BtnBack: TCustomImageButton;
+    Label1: TLabel;
+    procedure FormCreate(Sender: TObject);
+    procedure BtnBackClick(Sender: TObject);
+    procedure FormClose(Sender: TObject; var Action: TCloseAction);
+  public
+    SettingsFilePath: string;
+    GameSettings: TGameSettings;
+    procedure ApplyDisplayMode(Mode: TDisplayMode);
+  end;
+
+var
+  CreditsForm: TCreditsForm;
+
+implementation
+
+{$R *.dfm}
+
+uses MainMenuUnit;
+
+procedure TCreditsForm.FormCreate(Sender: TObject);
+begin
+  DoubleBuffered := True;
+  BorderStyle := bsNone;
+
+  SettingsFilePath := IncludeTrailingPathDelimiter(
+    ExtractFilePath(ParamStr(0))
+  ) + 'settings.ini';
+  LoadSettings(GameSettings, SettingsFilePath);
+  ApplyDisplayMode(GameSettings.DisplayMode);
+
+  WindowState := wsMaximized;
+  ImageBackground.Picture.LoadFromFile(
+    ExtractFilePath(ParamStr(0)) + 'resources\images\background\3.jpg'
+  );
+  ImageBackground.SendToBack;
+end;
+
+procedure TCreditsForm.BtnBackClick(Sender: TObject);
+begin
+  DM.PlayClickSound;
+  Close;
+end;
+
+procedure TCreditsForm.FormClose(Sender: TObject; var Action: TCloseAction);
+begin
+  Action := caFree;
+  CreditsForm := nil;
+  MainMenuForm.Show;
+end;
+
+procedure TCreditsForm.ApplyDisplayMode(Mode: TDisplayMode);
+var
+  SW, SH: Integer;
+begin
+  SW := Screen.Width;      // ширина экрана пользователя :contentReference[oaicite:3]{index=3}
+  SH := Screen.Height;     // высота экрана пользователя :contentReference[oaicite:4]{index=4}
+
+  case Mode of
+    dmFullscreen:
+      begin
+        BorderStyle := bsNone;
+        WindowState := wsMaximized;  // В полноэкранном режиме Delphi автоматически растянет форму :contentReference[oaicite:5]{index=5}
+      end;
+
+    dmBorderless:
+      begin
+        BorderStyle := bsNone;
+        WindowState := wsNormal;
+        // Размещаем и растягиваем форму на весь экран вручную
+        SetBounds(0, 0, SW, SH);      // задаёт Left=0, Top=0, Width=SW, Height=SH :contentReference[oaicite:6]{index=6}
+      end;
+
+    dmWindowed:
+      begin
+        BorderStyle := bsSizeable;
+        WindowState := wsNormal;
+        // Формально тоже растягиваем на весь экран, но с рамкой
+        SetBounds(0, 0, SW, SH);      // можно также оставить смещённым или задать конкретный размер :contentReference[oaicite:7]{index=7}
+      end;
+  end;
+
+end;
+
+end.

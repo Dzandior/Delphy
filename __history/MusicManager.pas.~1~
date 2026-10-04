@@ -1,0 +1,67 @@
+// MusicManager.pas
+unit MusicManager;
+
+interface
+uses
+  Windows, SysUtils, bass;
+
+type
+  TMusicManager = class
+  private
+    FStream: HSTREAM;
+  public
+    // Инициализация BASS (вызывать при старте приложения)
+    procedure Init;
+    // Загрузка и запуск фоновой музыки
+    procedure PlayBackground;
+    // Остановка музыки (вызывать при переходе на GameMenuForm)
+    procedure Stop;
+    // Очистка BASS (вызывать при выходе из приложения)
+    procedure Done;
+  end;
+
+implementation
+
+const
+  MusicFile = 'resources\music\background.mp3';
+
+{ TMusicManager }
+
+procedure TMusicManager.Init;
+begin
+  // Инициализация аудиосистемы: устройство по умолчанию (-1), 44100 Гц, стерео, handle = главная форма
+  if not BASS_Init(-1, 44100, 0, 0, nil) then
+    raise Exception.Create('Не удалось инициализировать аудио (BASS)');
+end;
+
+procedure TMusicManager.PlayBackground;
+var
+  Path: string;
+begin
+  // Путь к музыке относительно папки с EXE
+  Path := IncludeTrailingPathDelimiter(ExtractFilePath(Application.ExeName)) + MusicFile;
+  // Создаём поток MP3 (и фоновое воспроизведение)
+  FStream := BASS_StreamCreateFile(False, PChar(Path), 0, 0, BASS_STREAM_AUTOFREE);
+  if FStream = 0 then
+    raise Exception.Create('Не удалось загрузить фон. музыку');
+  BASS_ChannelSetAttribute(FStream, BASS_ATTRIB_VOL, 0.5); // стартовая громкость 50%
+  BASS_ChannelPlay(FStream, False);
+end;
+
+procedure TMusicManager.Stop;
+begin
+  if FStream <> 0 then
+  begin
+    BASS_ChannelStop(FStream);
+    BASS_StreamFree(FStream);
+    FStream := 0;
+  end;
+end;
+
+procedure TMusicManager.Done;
+begin
+  BASS_Free;
+end;
+
+end.
+

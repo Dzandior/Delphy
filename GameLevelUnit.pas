@@ -1,0 +1,1865 @@
+unit GameLevelUnit;
+
+interface
+
+uses
+  Winapi.Windows, Winapi.Messages, System.SysUtils, System.Variants, System.Classes, Vcl.Graphics,
+  Vcl.Controls, Vcl.Forms, Vcl.Dialogs, Vcl.ExtCtrls, Vcl.StdCtrls, System.Generics.Collections,
+  Math, Vcl.Imaging.PngImage, System.TypInfo, DMUnit, SettingsManagerUnit, MainMenuUnit;
+
+type
+  TMobType = (normal_slime, big_slime, king_slime, skeleton, zombie, demon);
+  TDecorationType = (mushroom, rock, tree_normal, tree_autumn);
+
+  TMob = record
+    MobType: TMobType;
+    X, Y: Double;
+    HP: Integer;
+    Progress: Double;
+    PathIndex: Integer;
+    ID: Integer;
+  end;
+
+  TPathPoint = record
+    X, Y: Integer;
+  end;
+
+  TTower = record
+    TowerType: Integer;
+    X, Y: Integer;
+    Damage: Double;
+    Cooldown: Double;
+    Range: Double;
+    LastShot: Double;
+  end;
+
+  TProjectile = record
+    X, Y: Double;
+    TargetID: Integer;
+    TargetX, TargetY: Double;
+    Damage: Double;
+    Color: TColor;
+    Speed: Double;
+    TowerType: Integer;
+  end;
+
+  TSlowEffect = record
+    MobID: Integer;
+    SlowFactor: Double;
+    Duration: Double;
+  end;
+
+  TGameLevelForm = class(TForm)
+    imgMap: TImage;
+    Timer: TTimer;
+    imgBackground: TImage;
+    procedure FormCreate(Sender: TObject);
+    procedure PaintBoxPaint(Sender: TObject);
+    procedure TowerClick(Sender: TObject);
+    procedure MapMouseDown(Sender: TObject; Button: TMouseButton; Shift: TShiftState; X, Y: Integer);
+    procedure TimerTick(Sender: TObject);
+    procedure UpgradeButtonClick(Sender: TObject);
+    procedure SellButtonClick(Sender: TObject);
+    procedure SpeedButtonClick(Sender: TObject);
+    procedure PauseButtonClick(Sender: TObject);
+    procedure SkipWaveButtonClick(Sender: TObject);
+    procedure FormKeyDown(Sender: TObject; var Key: Word; Shift: TShiftState);
+    procedure FormClose(Sender: TObject; var Action: TCloseAction);
+    procedure FormShow(Sender: TObject);
+  private
+    FMapNumber: Integer;
+    DifficultyMultiplier: Double;
+    Map: array[0..9, 0..9] of Integer;
+    StartX, StartY: Integer;
+    EndX, EndY: Integer;
+    PaintBoxes: array[0..3] of TPaintBox;
+    Labels: array[0..3] of TLabel;
+    TriangleColors: array[0..3] of TColor;
+    ProjectileTextures: array[0..3] of TPngImage;
+    MobTextures: array[TMobType] of TPngImage;
+    RoadTexture: TPngImage;
+    GrassTexture: TPngImage;
+    StartTexture: TPngImage;
+    EndTexture: TPngImage;
+    DecorationTextures: array[TDecorationType] of TPngImage;
+    DecorationTypes: array[0..9, 0..9] of TDecorationType;
+    ButtonTextures: array[-7..3] of TPngImage; // Текстуры для всех кнопок
+    TowerTextures: array[0..3] of TPngImage; // Текстуры для самих башен
+    SelectedIndex: Integer;
+    SelectedTowerIndex: Integer;
+    Mobs: TList<TMob>;
+    Towers: TList<TTower>;
+    Projectiles: TList<TProjectile>;
+    SlowEffects: TList<TSlowEffect>;
+    Path: array of TPathPoint;
+    Money: Integer;
+    MoneyLabel: TLabel;
+    MoneyIcon: TPaintBox;
+    PlayerHP: Integer;
+    PlayerHPLabel: TLabel;
+    PlayerHPIcon: TPaintBox;
+    NextMobID: Integer;
+    UpgradeButton: TPaintBox;
+    SellButton: TPaintBox;
+    SpeedButton: TPaintBox;
+    PauseButton: TPaintBox;
+    SkipWaveButton: TPaintBox;
+    WaveLabel: TLabel;
+    WaveTimerLabel: TLabel;
+    WaveNumber: Integer;
+    TotalWaves: Integer;
+    MobsToSpawn: Integer;
+    SpawnedMobs: Integer;
+    IsPaused: Boolean;
+    IsSpeedUp: Boolean;
+    SpeedMultiplier: Double;
+    IsWaveStarting: Boolean;
+    WaveStartTime: Double;
+    MobSpawnIntervals: array[TMobType] of Double;
+    NextMobType: TMobType;
+    GameEnded: Boolean;
+    GameSettings: TGameSettings;
+    SettingsFilePath: string;
+    procedure InitializeMap;
+    procedure InitializePath;
+    procedure RenderMap;
+    procedure SpawnMob;
+    procedure UpdateMoneyLabel;
+    procedure UpdatePlayerHPLabel;
+    procedure UpdateWaveLabel;
+    procedure UpdateWaveTimerLabel;
+    procedure StartNewWave;
+    procedure SetMapNumber(Value: Integer); // Сеттер для MapNumber
+    function GetMapNumber: Integer; // Геттер для MapNumber
+  public
+    constructor Create(AOwner: TComponent); override;
+    destructor Destroy; override;
+    property MapNumber: Integer read GetMapNumber write SetMapNumber;
+  end;
+
+var
+  GameLevelForm: TGameLevelForm;
+
+implementation
+
+{$R *.dfm}
+
+uses
+  System.Types, GameMenuUnit;
+
+const
+  TILE_SIZE = 64;
+  ROAD = 0;
+  GRASS = 1;
+  DECORATION = 2;
+  TOWER_BASE = 3;
+  MOB_RADIUS = 20;
+  WAVE_START_INTERVAL = 10000;
+  // Базовые скорости мобов
+  NORMAL_SLIME_SPEED = 0.5;
+  BIG_SLIME_SPEED = 0.8;
+  KING_SLIME_SPEED = 0.6;
+  SKELETON_SPEED = 1.0;
+  ZOMBIE_SPEED = 0.7;
+  DEMON_SPEED = 0.5;
+  // Базовое здоровье мобов
+  BASE_NORMAL_SLIME_HP = 12;
+  BASE_BIG_SLIME_HP = 25;
+  BASE_KING_SLIME_HP = 100;
+  BASE_SKELETON_HP = 18;
+  BASE_ZOMBIE_HP = 35;
+  BASE_DEMON_HP = 200;
+  // Базовые награды за мобов
+  BASE_NORMAL_SLIME_REWARD = 60;
+  BASE_BIG_SLIME_REWARD = 120;
+  BASE_KING_SLIME_REWARD = 600;
+  BASE_SKELETON_REWARD = 100;
+  BASE_ZOMBIE_REWARD = 180;
+  BASE_DEMON_REWARD = 1200;
+  // Базовый урон мобов
+  BASE_NORMAL_SLIME_DAMAGE = 2;
+  BASE_BIG_SLIME_DAMAGE = 4;
+  BASE_KING_SLIME_DAMAGE = 15;
+  BASE_SKELETON_DAMAGE = 3;
+  BASE_ZOMBIE_DAMAGE = 6;
+  BASE_DEMON_DAMAGE = 25;
+  PROJECTILE_SPEED = 200;
+  PROJECTILE_SIZE = 10;
+  HP_BAR_WIDTH = 30;
+  HP_BAR_HEIGHT = 5;
+  HP_BAR_OFFSET = 10;
+  BASE_UPGRADE_COST = 150;
+  BASE_PLAYER_HP = 20;
+  TOTAL_WAVES = 10;
+  TIMER_INTERVAL = 50;
+  ICON_SIZE = 16;
+  BASE_INITIAL_MONEY = 500;
+  // Базовые стоимости башен
+  BASE_TOWER_COSTS: array[0..3] of Integer = (100, 200, 350, 600);
+  TOWER_NAMES: array[0..3] of string = ('Archer', 'Cannon', 'IceWizard', 'LightningTower');
+  TOWER_RANGES: array[0..3] of Double = (1.5 * TILE_SIZE, 1.8 * TILE_SIZE, 1.2 * TILE_SIZE, 2.0 * TILE_SIZE);
+  CANNON_AOE_RADIUS = TILE_SIZE;
+  ICE_WIZARD_SLOW_RADIUS = TILE_SIZE * 0.5;
+  ICE_WIZARD_SLOW_FACTOR = 0.5;
+  ICE_WIZARD_SLOW_DURATION = 2.0;
+
+//создание экземпляра класса
+constructor TGameLevelForm.Create(AOwner: TComponent);
+begin
+  inherited Create(AOwner);
+end;
+
+//сеттер для установления номера уровня
+procedure TGameLevelForm.SetMapNumber(Value: Integer);
+begin
+  if (Value >= 1) and (Value <= 4) and (FMapNumber <> Value) then
+  begin
+    FMapNumber := Value;
+    InitializeMap;
+    InitializePath;
+    RenderMap;
+  end;
+end;
+
+//геттер для возвращения номера уровня
+function TGameLevelForm.GetMapNumber: Integer;
+begin
+  Result := FMapNumber;
+end;
+
+//инициализация карты
+procedure TGameLevelForm.InitializeMap;
+var
+  x, y: Integer;
+  MapFile: TextFile;
+  Line: string;
+  CharValue: Char;
+  MapFileName: string;
+begin
+  // Очищаем массив карты и декораций
+  for y := 0 to 9 do
+    for x := 0 to 9 do
+    begin
+      Map[x, y] := GRASS;
+      DecorationTypes[x, y] := mushroom; // Значение по умолчанию для декораций
+    end;
+
+  // Проверка MapNumber
+  if (MapNumber < 1) or (MapNumber > 4) then
+  begin
+    ShowMessage('Invalid MapNumber: ' + IntToStr(MapNumber) + '. Defaulting to Map 1.');
+    FMapNumber := 1;
+  end;
+
+  // Формируем имя файла карты
+  MapFileName := IncludeTrailingPathDelimiter(ExtractFilePath(ParamStr(0))) + 'maps\Map' + IntToStr(MapNumber) + '.txt';
+  try
+    AssignFile(MapFile, MapFileName);
+    Reset(MapFile);
+    y := 0;
+    while (not EOF(MapFile)) and (y < 10) do
+    begin
+      ReadLn(MapFile, Line);
+      Line := Trim(Line);
+      if Length(Line) >= 10 then
+      begin
+        for x := 0 to 9 do
+        begin
+          CharValue := Line[x + 1]; // Строки в Pascal начинаются с 1
+          case UpCase(CharValue) of
+            'R': Map[x, y] := ROAD; // Дорога
+            'G': Map[x, y] := GRASS; // Трава
+            'S': // Старт
+              begin
+                Map[x, y] := ROAD;
+                StartX := x;
+                StartY := y;
+              end;
+            'E': // Финиш
+              begin
+                Map[x, y] := ROAD;
+                EndX := x;
+                EndY := y;
+              end;
+            'M': // Гриб (mushroom)
+              begin
+                Map[x, y] := DECORATION;
+                DecorationTypes[x, y] := mushroom;
+              end;
+            'K': // Камень (rock)
+              begin
+                Map[x, y] := DECORATION;
+                DecorationTypes[x, y] := rock;
+              end;
+            'T': // Обычное дерево (tree_normal)
+              begin
+                Map[x, y] := DECORATION;
+                DecorationTypes[x, y] := tree_normal;
+              end;
+            'A': // Осеннее дерево (tree_autumn)
+              begin
+                Map[x, y] := DECORATION;
+                DecorationTypes[x, y] := tree_autumn;
+              end;
+          end;
+        end;
+        Inc(y);
+      end;
+    end;
+    CloseFile(MapFile);
+
+    // Проверка, что точки старта и финиша установлены
+    if (StartX = 0) and (StartY = 0) and (EndX = 0) and (EndY = 0) and (MapNumber = 1) then
+      raise Exception.Create('Точки старта (S) или финиша (E) не найдены в файле ' + MapFileName);
+  except
+    on E: Exception do
+    begin
+      ShowMessage('Ошибка при чтении файла карты ' + MapFileName + ': ' + E.Message);
+      // Восстанавливаем карту по умолчанию (для Map1.txt)
+      for y := 0 to 9 do
+        for x := 0 to 9 do
+        begin
+          if (x = 0) and (y >= 2) and (y <= 7) then
+            Map[x, y] := ROAD
+          else if (y = 7) and (x >= 0) and (x <= 9) then
+            Map[x, y] := ROAD
+          else if (x = 9) and (y >= 0) and (y <= 7) then
+            Map[x, y] := ROAD
+          else if (y = 2) or (y = 3) then
+          begin
+            Map[x, y] := DECORATION;
+            if y = 2 then
+            begin
+              case x mod 4 of
+                0: DecorationTypes[x, y] := mushroom;
+                1: DecorationTypes[x, y] := rock;
+                2: DecorationTypes[x, y] := tree_normal;
+                3: DecorationTypes[x, y] := tree_autumn;
+              end;
+            end
+            else if y = 3 then
+            begin
+              if x = 0 then
+                Map[x, y] := ROAD
+              else
+                case (x - 1) mod 4 of
+                  0: DecorationTypes[x, y] := mushroom;
+                  1: DecorationTypes[x, y] := rock;
+                  2: DecorationTypes[x, y] := tree_normal;
+                  3: DecorationTypes[x, y] := tree_autumn;
+                end;
+            end;
+          end
+          else
+            Map[x, y] := GRASS;
+        end;
+      StartX := 0; StartY := 2;
+      EndX := 9; EndY := 0;
+    end;
+  end;
+end;
+
+//инициализация пути движения для врагов
+procedure TGameLevelForm.InitializePath;
+var
+  PathFile: TextFile;
+  Line: string;
+  Points: TList<TPathPoint>;
+  Point: TPathPoint;
+  Values: TArray<string>;
+  i: Integer;
+  PathFileName: string;
+begin
+  Points := TList<TPathPoint>.Create;
+  try
+    if (MapNumber < 1) or (MapNumber > 4) then
+    begin
+      ShowMessage('Invalid MapNumber: ' + IntToStr(MapNumber) + '. Defaulting to Path 1.');
+      FMapNumber := 1;
+    end;
+    // Формируем имя файла пути
+    PathFileName := IncludeTrailingPathDelimiter(ExtractFilePath(ParamStr(0))) + 'pathes\Path' + IntToStr(MapNumber) + '.txt';
+    AssignFile(PathFile, PathFileName);
+    Reset(PathFile);
+    while not EOF(PathFile) do
+    begin
+      ReadLn(PathFile, Line);
+      Line := Trim(Line);
+      if Line <> '' then
+      begin
+        Values := Line.Split([' ']); // Разделяем строку по пробелам
+        if Length(Values) >= 2 then
+        begin
+          Point.X := StrToIntDef(Values[0], 0); // Координата X
+          Point.Y := StrToIntDef(Values[1], 0); // Координата Y
+          Points.Add(Point);
+        end;
+      end;
+    end;
+    CloseFile(PathFile);
+
+    // Проверяем, что путь содержит хотя бы одну точку
+    if Points.Count = 0 then
+      raise Exception.Create('Файл ' + PathFileName + ' пуст или содержит некорректные данные');
+
+    // Копируем точки в массив Path
+    SetLength(Path, Points.Count);
+    for i := 0 to Points.Count - 1 do
+      Path[i] := Points[i];
+
+  except
+    on E: Exception do
+    begin
+      ShowMessage('Ошибка при чтении файла пути ' + PathFileName + ': ' + E.Message);
+      // Fallback-логика в зависимости от MapNumber
+      case MapNumber of
+        1: begin
+          SetLength(Path, 22);
+          Path[0].X := 0; Path[0].Y := 2;
+          Path[1].X := 0; Path[1].Y := 3;
+          Path[2].X := 0; Path[2].Y := 4;
+          Path[3].X := 0; Path[3].Y := 5;
+          Path[4].X := 0; Path[4].Y := 6;
+          Path[5].X := 0; Path[5].Y := 7;
+          Path[6].X := 1; Path[6].Y := 7;
+          Path[7].X := 2; Path[7].Y := 7;
+          Path[8].X := 3; Path[8].Y := 7;
+          Path[9].X := 4; Path[9].Y := 7;
+          Path[10].X := 5; Path[10].Y := 7;
+          Path[11].X := 6; Path[11].Y := 7;
+          Path[12].X := 7; Path[12].Y := 7;
+          Path[13].X := 8; Path[13].Y := 7;
+          Path[14].X := 9; Path[14].Y := 7;
+          Path[15].X := 9; Path[15].Y := 6;
+          Path[16].X := 9; Path[16].Y := 5;
+          Path[17].X := 9; Path[17].Y := 4;
+          Path[18].X := 9; Path[18].Y := 3;
+          Path[19].X := 9; Path[19].Y := 2;
+          Path[20].X := 9; Path[20].Y := 1;
+          Path[21].X := 9; Path[21].Y := 0;
+        end;
+        2: begin
+          SetLength(Path, 15);
+          Path[0].X := 0; Path[0].Y := 2;
+          Path[1].X := 1; Path[1].Y := 2;
+          Path[2].X := 2; Path[2].Y := 2;
+          Path[3].X := 3; Path[3].Y := 2;
+          Path[4].X := 4; Path[4].Y := 2;
+          Path[5].X := 5; Path[5].Y := 2;
+          Path[6].X := 6; Path[6].Y := 2;
+          Path[7].X := 7; Path[7].Y := 2;
+          Path[8].X := 8; Path[8].Y := 2;
+          Path[9].X := 9; Path[9].Y := 2;
+          Path[10].X := 9; Path[10].Y := 3;
+          Path[11].X := 9; Path[11].Y := 4;
+          Path[12].X := 9; Path[12].Y := 5;
+          Path[13].X := 9; Path[13].Y := 6;
+          Path[14].X := 9; Path[14].Y := 7;
+        end;
+        3: begin
+          SetLength(Path, 20);
+          Path[0].X := 0; Path[0].Y := 0;
+          Path[1].X := 1; Path[1].Y := 0;
+          Path[2].X := 2; Path[2].Y := 0;
+          Path[3].X := 3; Path[3].Y := 0;
+          Path[4].X := 4; Path[4].Y := 0;
+          Path[5].X := 5; Path[5].Y := 0;
+          Path[6].X := 6; Path[6].Y := 0;
+          Path[7].X := 7; Path[7].Y := 0;
+          Path[8].X := 8; Path[8].Y := 0;
+          Path[9].X := 9; Path[9].Y := 0;
+          Path[10].X := 9; Path[10].Y := 1;
+          Path[11].X := 9; Path[11].Y := 2;
+          Path[12].X := 9; Path[12].Y := 3;
+          Path[13].X := 9; Path[13].Y := 4;
+          Path[14].X := 9; Path[14].Y := 5;
+          Path[15].X := 9; Path[15].Y := 6;
+          Path[16].X := 9; Path[16].Y := 7;
+          Path[17].X := 9; Path[17].Y := 8;
+          Path[18].X := 9; Path[18].Y := 9;
+        end;
+        4: begin
+          SetLength(Path, 20);
+          Path[0].X := 0; Path[0].Y := 9;
+          Path[1].X := 1; Path[1].Y := 9;
+          Path[2].X := 2; Path[2].Y := 9;
+          Path[3].X := 3; Path[3].Y := 9;
+          Path[4].X := 4; Path[4].Y := 9;
+          Path[5].X := 5; Path[5].Y := 9;
+          Path[6].X := 6; Path[6].Y := 9;
+          Path[7].X := 7; Path[7].Y := 9;
+          Path[8].X := 8; Path[8].Y := 9;
+          Path[9].X := 9; Path[9].Y := 9;
+          Path[10].X := 9; Path[10].Y := 8;
+          Path[11].X := 9; Path[11].Y := 7;
+          Path[12].X := 9; Path[12].Y := 6;
+          Path[13].X := 9; Path[13].Y := 5;
+          Path[14].X := 9; Path[14].Y := 4;
+          Path[15].X := 9; Path[15].Y := 3;
+          Path[16].X := 9; Path[16].Y := 2;
+          Path[17].X := 9; Path[17].Y := 1;
+          Path[18].X := 9; Path[18].Y := 0;
+        end;
+      end;
+    end;
+  end;
+  Points.Free;
+end;
+
+//прогрузка карты
+procedure TGameLevelForm.RenderMap;
+var
+  x, y, i: Integer;
+  TileColor: TColor;
+  BarX, BarY: Integer;
+  MaxHP, FillWidth: Integer;
+  MobRadius: Integer;
+begin
+  if (imgMap = nil) or (imgMap.Canvas = nil) then
+    Exit;
+
+  imgMap.Canvas.Brush.Style := bsSolid;
+
+  for y := 0 to 9 do
+    for x := 0 to 9 do
+    begin
+      // Отрисовка фона для клеток с башнями
+      if (Map[x, y] >= TOWER_BASE) and (Map[x, y] < TOWER_BASE + 4) then
+      begin
+        // Отрисовываем траву под башней
+        if Assigned(GrassTexture) then
+          imgMap.Canvas.StretchDraw(Rect(x * TILE_SIZE, y * TILE_SIZE, (x + 1) * TILE_SIZE, (y + 1) * TILE_SIZE),GrassTexture)
+        else
+        begin
+          imgMap.Canvas.Brush.Color := clGreen;
+          imgMap.Canvas.FillRect(Rect(x * TILE_SIZE, y * TILE_SIZE, (x + 1) * TILE_SIZE, (y + 1) * TILE_SIZE));
+        end;
+      end
+      else
+        case Map[x, y] of
+          ROAD:
+            begin
+              if Assigned(RoadTexture) then
+                imgMap.Canvas.StretchDraw(Rect(x * TILE_SIZE, y * TILE_SIZE, (x + 1) * TILE_SIZE, (y + 1) * TILE_SIZE),RoadTexture)
+              else
+              begin
+                imgMap.Canvas.Brush.Color := clBlack;
+                imgMap.Canvas.FillRect(Rect(x * TILE_SIZE, y * TILE_SIZE, (x + 1) * TILE_SIZE, (y + 1) * TILE_SIZE));
+              end;
+            end;
+          GRASS, DECORATION:
+            begin
+              if Assigned(GrassTexture) then
+                imgMap.Canvas.StretchDraw(Rect(x * TILE_SIZE, y * TILE_SIZE, (x + 1) * TILE_SIZE, (y + 1) * TILE_SIZE),GrassTexture)
+              else
+              begin
+                imgMap.Canvas.Brush.Color := clGreen;
+                imgMap.Canvas.FillRect(Rect(x * TILE_SIZE, y * TILE_SIZE, (x + 1) * TILE_SIZE, (y + 1) * TILE_SIZE));
+              end;
+            end;
+        end;
+      //отрисовка декораций
+      if Map[x, y] = DECORATION then
+      begin
+        if Assigned(DecorationTextures[DecorationTypes[x, y]]) then
+        begin
+          case DecorationTypes[x, y] of
+            mushroom:
+              imgMap.Canvas.StretchDraw(Rect(x * TILE_SIZE + 20, y * TILE_SIZE + (TILE_SIZE - 24),x * TILE_SIZE + 44, y * TILE_SIZE + TILE_SIZE),DecorationTextures[DecorationTypes[x, y]]);
+            rock, tree_normal, tree_autumn:
+              imgMap.Canvas.StretchDraw(Rect(x * TILE_SIZE + 8, y * TILE_SIZE + 8,x * TILE_SIZE + 56, y * TILE_SIZE + 56),DecorationTextures[DecorationTypes[x, y]]);
+          end;
+        end
+        else
+        begin
+          imgMap.Canvas.Brush.Color := clOlive;
+          imgMap.Canvas.FillRect(Rect(x * TILE_SIZE + 16, y * TILE_SIZE + 16,x * TILE_SIZE + 48, y * TILE_SIZE + 48));
+        end;
+      end
+      else if (Map[x, y] >= TOWER_BASE) and (Map[x, y] < TOWER_BASE + 4) then
+      begin
+        // Отрисовка самой башни
+        var TowerType := Map[x, y] - TOWER_BASE;
+        if (TowerType >= 0) and (TowerType <= 3) and Assigned(TowerTextures[TowerType]) then
+          imgMap.Canvas.StretchDraw(Rect(x * TILE_SIZE, y * TILE_SIZE, (x + 1) * TILE_SIZE, (y + 1) * TILE_SIZE),TowerTextures[TowerType]) // Используем текстуру башни
+        else
+        begin
+          imgMap.Canvas.Brush.Color := clGray;
+          imgMap.Canvas.FillRect(Rect(x * TILE_SIZE, y * TILE_SIZE, (x + 1) * TILE_SIZE, (y + 1) * TILE_SIZE));
+        end;
+        // Выделение выбранной башни
+        if (SelectedTowerIndex >= 0) and (Towers[SelectedTowerIndex].X = x) and (Towers[SelectedTowerIndex].Y = y) then
+        begin
+          imgMap.Canvas.Pen.Color := clBlue;
+          imgMap.Canvas.Pen.Width := 2;
+          imgMap.Canvas.Brush.Style := bsClear;
+          imgMap.Canvas.Rectangle(x * TILE_SIZE, y * TILE_SIZE, (x + 1) * TILE_SIZE, (y + 1) * TILE_SIZE);
+          imgMap.Canvas.Pen.Width := 1;
+          imgMap.Canvas.Brush.Style := bsSolid;
+        end;
+      end;
+    end;
+  //отрисовка врагов
+  if Assigned(Mobs) then
+  begin
+    for i := 0 to Mobs.Count - 1 do
+    begin
+      MobRadius := IfThen(Mobs[i].MobType in [king_slime, demon], 2 * MOB_RADIUS, MOB_RADIUS);
+      if Assigned(MobTextures[Mobs[i].MobType]) then
+        imgMap.Canvas.StretchDraw(Rect(Round(Mobs[i].X * TILE_SIZE + TILE_SIZE/2 - MobRadius),Round(Mobs[i].Y * TILE_SIZE + TILE_SIZE/2 - MobRadius),Round(Mobs[i].X * TILE_SIZE + TILE_SIZE/2 + MobRadius),Round(Mobs[i].Y * TILE_SIZE + TILE_SIZE/2 + MobRadius)),MobTextures[Mobs[i].MobType]);
+      BarX := Round(Mobs[i].X * TILE_SIZE + TILE_SIZE/2 - HP_BAR_WIDTH div 2);
+      BarY := Round(Mobs[i].Y * TILE_SIZE + TILE_SIZE/2 - MobRadius - HP_BAR_OFFSET - HP_BAR_HEIGHT);
+      case Mobs[i].MobType of
+        normal_slime: MaxHP := Round(BASE_NORMAL_SLIME_HP * DifficultyMultiplier);
+        big_slime: MaxHP := Round(BASE_BIG_SLIME_HP * DifficultyMultiplier);
+        king_slime: MaxHP := Round(BASE_KING_SLIME_HP * DifficultyMultiplier);
+        skeleton: MaxHP := Round(BASE_SKELETON_HP * DifficultyMultiplier);
+        zombie: MaxHP := Round(BASE_ZOMBIE_HP * DifficultyMultiplier);
+        demon: MaxHP := Round(BASE_DEMON_HP * DifficultyMultiplier);
+      end;
+      FillWidth := Round((Mobs[i].HP / MaxHP) * HP_BAR_WIDTH);
+
+      imgMap.Canvas.Brush.Color := clBlack;
+      imgMap.Canvas.FillRect(Rect(BarX, BarY, BarX + HP_BAR_WIDTH, BarY + HP_BAR_HEIGHT));
+
+      if FillWidth > 0 then
+      begin
+        imgMap.Canvas.Brush.Color := clRed;
+        imgMap.Canvas.FillRect(Rect(BarX, BarY, BarX + FillWidth, BarY + HP_BAR_HEIGHT));
+      end;
+    end;
+  end;
+  //отрисовка снарядов
+  if Assigned(Projectiles) then
+  begin
+    for i := 0 to Projectiles.Count - 1 do
+    begin
+      if Assigned(ProjectileTextures[Projectiles[i].TowerType]) then
+        imgMap.Canvas.StretchDraw(Rect(Round(Projectiles[i].X - PROJECTILE_SIZE/2),Round(Projectiles[i].Y - PROJECTILE_SIZE/2),Round(Projectiles[i].X + PROJECTILE_SIZE/2),Round(Projectiles[i].Y + PROJECTILE_SIZE/2)),ProjectileTextures[Projectiles[i].TowerType]);
+    end;
+  end;
+  //отрисовка старта
+  if Assigned(StartTexture) then
+    imgMap.Canvas.StretchDraw(Rect(StartX * TILE_SIZE, StartY * TILE_SIZE,(StartX + 1) * TILE_SIZE, (StartY + 1) * TILE_SIZE),StartTexture)
+  else
+  begin
+    imgMap.Canvas.Brush.Color := clRed;
+    imgMap.Canvas.FillRect(Rect(StartX * TILE_SIZE, StartY * TILE_SIZE,(StartX + 1) * TILE_SIZE, (StartY + 1) * TILE_SIZE));
+  end;
+  //отрисовка конца
+  if Assigned(EndTexture) then
+    imgMap.Canvas.StretchDraw(Rect(EndX * TILE_SIZE, EndY * TILE_SIZE,(EndX + 1) * TILE_SIZE, (EndY + 1) * TILE_SIZE),EndTexture)
+  else
+  begin
+    imgMap.Canvas.Brush.Color := clBlue;
+    imgMap.Canvas.FillRect(Rect(EndX * TILE_SIZE, EndY * TILE_SIZE,(EndX + 1) * TILE_SIZE, (EndY + 1) * TILE_SIZE));
+  end;
+end;
+
+//спавн врагов
+procedure TGameLevelForm.SpawnMob;
+   var
+     Mob: TMob;
+     IsBossWave: Boolean;
+     R: Double;
+   begin
+     Mob.X := StartX;
+     Mob.Y := StartY;
+     Mob.PathIndex := 0;
+     Mob.Progress := 0.0;
+
+     IsBossWave := (WaveNumber = 5) or (WaveNumber = 10);
+     if IsBossWave and (SpawnedMobs = MobsToSpawn - 1) then
+     begin
+       if WaveNumber = 5 then
+         Mob.MobType := king_slime
+       else
+         Mob.MobType := demon;
+       NextMobType := Mob.MobType;
+     end
+     else
+     begin
+       if WaveNumber >= 6 then
+       begin
+         R := Random;
+         if R < 0.4 then
+           Mob.MobType := skeleton
+         else if R < 0.8 then
+           Mob.MobType := zombie
+         else if R < 0.9 then
+           Mob.MobType := normal_slime
+         else
+           Mob.MobType := big_slime;
+         NextMobType := Mob.MobType;
+       end
+       else
+       begin
+         R := Random;
+         if R < 0.7 then
+           Mob.MobType := normal_slime
+         else
+           Mob.MobType := big_slime;
+         NextMobType := Mob.MobType;
+       end;
+     end;
+
+     case Mob.MobType of
+       normal_slime: Mob.HP := Round(BASE_NORMAL_SLIME_HP * DifficultyMultiplier);
+       big_slime: Mob.HP := Round(BASE_BIG_SLIME_HP * DifficultyMultiplier);
+       king_slime: Mob.HP := Round(BASE_KING_SLIME_HP * DifficultyMultiplier);
+       skeleton: Mob.HP := Round(BASE_SKELETON_HP * DifficultyMultiplier);
+       zombie: Mob.HP := Round(BASE_ZOMBIE_HP * DifficultyMultiplier);
+       demon: Mob.HP := Round(BASE_DEMON_HP * DifficultyMultiplier);
+     end;
+
+     Mob.ID := NextMobID;
+     Inc(NextMobID);
+     Mobs.Add(Mob);
+     Inc(SpawnedMobs);
+   end;
+
+procedure TGameLevelForm.UpdateMoneyLabel;
+begin
+  if Assigned(MoneyLabel) then
+    MoneyLabel.Caption := 'Деньги: ' + IntToStr(Money);
+end;
+
+procedure TGameLevelForm.UpdatePlayerHPLabel;
+begin
+  if Assigned(PlayerHPLabel) then
+    PlayerHPLabel.Caption := 'ХП: ' + IntToStr(PlayerHP);
+end;
+
+procedure TGameLevelForm.UpdateWaveLabel;
+begin
+  if Assigned(WaveLabel) then
+    WaveLabel.Caption := Format('Номер волны: %d/%d', [WaveNumber, TotalWaves]);
+end;
+
+procedure TGameLevelForm.UpdateWaveTimerLabel;
+begin
+  if Assigned(WaveTimerLabel) then
+  begin
+    if IsWaveStarting then
+      WaveTimerLabel.Caption := Format('Волна начнётся через: %.1f с', [WaveStartTime])
+    else
+      WaveTimerLabel.Caption := '';
+  end;
+end;
+
+//начало новой волны
+procedure TGameLevelForm.StartNewWave;
+   begin
+     WaveNumber := WaveNumber + 1;
+     MobsToSpawn := Round((15 + 3 * WaveNumber) * 1.3 * DifficultyMultiplier);
+     SpawnedMobs := 0;
+     for var MobType := Low(TMobType) to High(TMobType) do
+     begin
+       MobSpawnIntervals[MobType] := Max(300.0, MobSpawnIntervals[MobType] * 0.90);
+     end;
+     Money := Money + Round(50 * WaveNumber / DifficultyMultiplier);
+     UpdateMoneyLabel;
+     UpdateWaveLabel;
+     UpdateWaveTimerLabel;
+     for var i := 0 to 3 do
+       PaintBoxes[i].Invalidate;
+   end;
+
+//закрытие формы
+procedure TGameLevelForm.FormClose(Sender: TObject; var Action: TCloseAction);
+begin
+  Action := caFree;
+  GameLevelForm := nil;
+  DM.StopMusic; // остановка музыки игры
+  DM.PlayMusic; // запуск музыки в меню
+  if Assigned(MainMenuForm) then
+    MainMenuForm.Show
+  else
+  begin
+    GameMenuForm := TGameMenuForm.Create(Application);
+    GameMenuForm.Show;
+  end;
+end;
+
+//создание формы
+procedure TGameLevelForm.FormCreate(Sender: TObject);
+var
+  i: Integer;
+  MobType: TMobType;
+  DecType: TDecorationType;
+begin
+
+  // Загрузка настроек в начале
+  SettingsFilePath := IncludeTrailingPathDelimiter(ExtractFilePath(ParamStr(0))) + 'settings.ini';
+  LoadSettings(GameSettings, SettingsFilePath);
+  case GameSettings.Difficulty of
+    dlEasy: DifficultyMultiplier := 0.75;
+    dlMedium: DifficultyMultiplier := 1.00;
+    dlHard: DifficultyMultiplier := 1.25;
+  end;
+
+  Randomize;
+  imgMap.Width := 10 * TILE_SIZE;
+  imgMap.Height := 10 * TILE_SIZE;
+  imgMap.Top := 100;
+  Self.ClientHeight := 740;
+  Self.ClientWidth := 1120;
+
+  // Создание и конфигурация изображения заднего фона
+  imgBackground := TImage.Create(Self);
+  imgBackground.Parent := Self;
+  imgBackground.Align := alClient;
+  imgBackground.Stretch := True;
+  imgBackground.Proportional := True;
+  imgBackground.Picture.LoadFromFile(ExtractFilePath(ParamStr(0)) + 'resources\images\background\5.png');
+  imgBackground.SendToBack;
+
+  TriangleColors[0] := clRed;
+  TriangleColors[1] := clGreen;
+  TriangleColors[2] := clBlue;
+  TriangleColors[3] := clYellow;
+
+  //загрузка текстур мобов
+  for MobType := Low(TMobType) to High(TMobType) do
+  begin
+    MobTextures[MobType] := TPngImage.Create;
+    case MobType of
+      normal_slime: MobTextures[MobType].LoadFromFile('resources\images\mobs\NormalSlime.png');
+      big_slime: MobTextures[MobType].LoadFromFile('resources\images\mobs\BigSlime.png');
+      king_slime: MobTextures[MobType].LoadFromFile('resources\images\mobs\KingSlime.png');
+      skeleton: MobTextures[MobType].LoadFromFile('resources\images\mobs\Skeleton.png');
+      zombie: MobTextures[MobType].LoadFromFile('resources\images\mobs\Zombie.png');
+      demon: MobTextures[MobType].LoadFromFile('resources\images\mobs\Demon.png');
+    end;
+  end;
+
+  //загрузка текстур снарядов
+  for i := 0 to 3 do
+  begin
+    ProjectileTextures[i] := TPngImage.Create;
+    case i of
+      0: ProjectileTextures[i].LoadFromFile('resources\images\projectiles\Arrow.png');
+      1: ProjectileTextures[i].LoadFromFile('resources\images\projectiles\CannonBall.png');
+      2: ProjectileTextures[i].LoadFromFile('resources\images\projectiles\IceBolt.png');
+      3: ProjectileTextures[i].LoadFromFile('resources\images\projectiles\LightningBolt.png');
+    end;
+  end;
+
+  //загрузка текстур дороги
+  RoadTexture := TPngImage.Create;
+  RoadTexture.LoadFromFile('resources\images\tiles\grass_road.png');
+
+  //загрузка текстур травы
+  GrassTexture := TPngImage.Create;
+  GrassTexture.LoadFromFile('resources\images\tiles\grass_1.png');
+
+  //загрузка текстур начала
+  StartTexture := TPngImage.Create;
+  StartTexture.LoadFromFile('resources\images\tiles\tower_beginning.png');
+
+  //загрузка текстур конца
+  EndTexture := TPngImage.Create;
+  EndTexture.LoadFromFile('resources\images\tiles\tower_end.png');
+
+  //загрузка текстур декораций
+  for DecType := Low(TDecorationType) to High(TDecorationType) do
+  begin
+    DecorationTextures[DecType] := TPngImage.Create;
+    case DecType of
+      mushroom: DecorationTextures[DecType].LoadFromFile('resources\images\decor\mushroom.png');
+      rock: DecorationTextures[DecType].LoadFromFile('resources\images\decor\rock.png');
+      tree_normal: DecorationTextures[DecType].LoadFromFile('resources\images\decor\tree_normal.png');
+      tree_autumn: DecorationTextures[DecType].LoadFromFile('resources\images\decor\tree_autumn.png');
+    end;
+  end;
+
+  //загрузка текстур кнопок
+  for i := -7 to 3 do
+  begin
+    ButtonTextures[i] := TPngImage.Create;
+    case i of
+      -7: ButtonTextures[i].LoadFromFile('resources\images\buttons\button_skipwave.png');
+      -6: ButtonTextures[i].LoadFromFile('resources\images\icons\icon_money.png');
+      -5: ButtonTextures[i].LoadFromFile('resources\images\icons\icon_hp.png');
+      -4: ButtonTextures[i].LoadFromFile('resources\images\buttons\button_pause.png');
+      -3: ButtonTextures[i].LoadFromFile('resources\images\buttons\button_speed.png');
+      -2: ButtonTextures[i].LoadFromFile('resources\images\buttons\button_sell.png');
+      -1: ButtonTextures[i].LoadFromFile('resources\images\buttons\button_upgrade.png');
+      0: ButtonTextures[i].LoadFromFile('resources\images\buttons\button_archer.png');
+      1: ButtonTextures[i].LoadFromFile('resources\images\buttons\button_cannon.png');
+      2: ButtonTextures[i].LoadFromFile('resources\images\buttons\button_mage.png');
+      3: ButtonTextures[i].LoadFromFile('resources\images\buttons\button_mortar.png');
+    end;
+  end;
+
+  // Загрузка текстур башен
+  for i := 0 to 3 do
+  begin
+    TowerTextures[i] := TPngImage.Create;
+    case i of
+      0: TowerTextures[i].LoadFromFile('resources\images\towers\archer.png'); // Текстура для башни Archer
+      1: TowerTextures[i].LoadFromFile('resources\images\towers\cannon.png'); // Текстура для башни Cannon
+      2: TowerTextures[i].LoadFromFile('resources\images\towers\ice_wizard.png'); // Текстура для башни IceWizard
+      3: TowerTextures[i].LoadFromFile('resources\images\towers\lightning_tower.png'); // Текстура для башни LightningTower
+    end;
+  end;
+
+  SelectedIndex := -1;
+  SelectedTowerIndex := -1;
+  Mobs := TList<TMob>.Create;
+  Towers := TList<TTower>.Create;
+  Projectiles := TList<TProjectile>.Create;
+  SlowEffects := TList<TSlowEffect>.Create;
+  Money := Round(BASE_INITIAL_MONEY / DifficultyMultiplier);
+  PlayerHP := BASE_PLAYER_HP;
+  NextMobID := 1;
+  WaveNumber := 0;
+  TotalWaves := TOTAL_WAVES;
+  MobsToSpawn := 0;
+  SpawnedMobs := 0;
+  IsPaused := False;
+  IsSpeedUp := False;
+  SpeedMultiplier := 1.0;
+  IsWaveStarting := True;
+  WaveStartTime := WAVE_START_INTERVAL / 1000;
+  MobSpawnIntervals[normal_slime] := 1275.0 / DifficultyMultiplier;
+  MobSpawnIntervals[big_slime] := 2550.0 / DifficultyMultiplier;
+  MobSpawnIntervals[king_slime] := 5950.0 / DifficultyMultiplier;
+  MobSpawnIntervals[skeleton] := 1700.0 / DifficultyMultiplier;
+  MobSpawnIntervals[zombie] := 3400.0 / DifficultyMultiplier;
+  MobSpawnIntervals[demon] := 7650.0 / DifficultyMultiplier;
+  NextMobType := normal_slime;
+  GameEnded := False;
+
+  Timer := TTimer.Create(Self);
+  Timer.Interval := TIMER_INTERVAL;
+  Timer.OnTimer := TimerTick;
+  Timer.Enabled := True;
+
+  imgMap.OnMouseDown := MapMouseDown;
+  Self.OnKeyDown := FormKeyDown;
+  Self.KeyPreview := True;
+
+  for i := 0 to 3 do
+  begin
+    PaintBoxes[i] := TPaintBox.Create(Self);
+    PaintBoxes[i].Parent := Self;
+    PaintBoxes[i].Left := 10 + i * 74;
+    PaintBoxes[i].Top := 10;
+    PaintBoxes[i].Width := 64;
+    PaintBoxes[i].Height := 64;
+    PaintBoxes[i].Tag := i;
+    PaintBoxes[i].OnPaint := PaintBoxPaint;
+    PaintBoxes[i].OnClick := TowerClick;
+    case i of
+      0: PaintBoxes[i].Hint := Format('Лучник: Цена=%d, Урон=1.0-2.5, Радиус=%.1f-%.1f tiles, Перезарядка=%.2f-1.4s', [Round(BASE_TOWER_COSTS[i] * DifficultyMultiplier), 1.5 * TILE_SIZE, 2.7 * TILE_SIZE, 2.0]);
+      1: PaintBoxes[i].Hint := Format('Пушка: Цена=%d, AOE Урон=3.0-4.5, Радиус=%.1f-%.1f tiles, Перезарядка=%.2f-2.4s', [Round(BASE_TOWER_COSTS[i] * DifficultyMultiplier), 1.8 * TILE_SIZE, 3.0 * TILE_SIZE, 3.0]);
+      2: PaintBoxes[i].Hint := Format('Ледяной маг: Цена=%d, Урон=0.5-2.0, Замедление на 50%% в радиусе 0.5 tiles, Радиус=%.1f-%.1f tiles, Перезарядка=%.2f-1.2s', [Round(BASE_TOWER_COSTS[i] * DifficultyMultiplier), 1.2 * TILE_SIZE, 2.4 * TILE_SIZE, 1.8]);
+      3: PaintBoxes[i].Hint := Format('Электрическая башня: Цена=%d, Урон= От 0.5+0.2*номер установки волны до 2.0+0.2*текущий номер волны, Радиус=%.1f-%.1f tiles, Перезарядка=%.2f-1.6s', [Round(BASE_TOWER_COSTS[i] * DifficultyMultiplier), 2.0 * TILE_SIZE, 3.2 * TILE_SIZE, 2.2]);
+    end;
+    PaintBoxes[i].ShowHint := True;
+
+    Labels[i] := TLabel.Create(Self);
+    Labels[i].Parent := Self;
+    Labels[i].Left := 10 + i * 74 + 20;
+    Labels[i].Top := 76;
+    Labels[i].Width := 48;
+    Labels[i].Alignment := taLeftJustify;
+    Labels[i].Caption := IntToStr(Round(BASE_TOWER_COSTS[i] * DifficultyMultiplier));
+  end;
+
+  UpgradeButton := TPaintBox.Create(Self);
+  UpgradeButton.Parent := Self;
+  UpgradeButton.Left := 10 + 3 * 74 + 74;
+  UpgradeButton.Top := 10;
+  UpgradeButton.Width := 64;
+  UpgradeButton.Height := 64;
+  UpgradeButton.Tag := -1;
+  UpgradeButton.OnPaint := PaintBoxPaint;
+  UpgradeButton.OnClick := UpgradeButtonClick;
+
+  SellButton := TPaintBox.Create(Self);
+  SellButton.Parent := Self;
+  SellButton.Left := 10 + 3 * 74 + 2 * 74;
+  SellButton.Top := 10;
+  SellButton.Width := 64;
+  SellButton.Height := 64;
+  SellButton.Tag := -2;
+  SellButton.OnPaint := PaintBoxPaint;
+  SellButton.OnClick := SellButtonClick;
+
+  SpeedButton := TPaintBox.Create(Self);
+  SpeedButton.Parent := Self;
+  SpeedButton.Left := 10 + 3 * 74 + 3 * 74;
+  SpeedButton.Top := 10;
+  SpeedButton.Width := 64;
+  SpeedButton.Height := 64;
+  SpeedButton.Tag := -3;
+  SpeedButton.OnPaint := PaintBoxPaint;
+  SpeedButton.OnClick := SpeedButtonClick;
+
+  PauseButton := TPaintBox.Create(Self);
+  PauseButton.Parent := Self;
+  PauseButton.Left := 10 + 3 * 74 + 4 * 74;
+  PauseButton.Top := 10;
+  PauseButton.Width := 64;
+  PauseButton.Height := 64;
+  PauseButton.Tag := -4;
+  PauseButton.OnPaint := PaintBoxPaint;
+  PauseButton.OnClick := PauseButtonClick;
+
+  SkipWaveButton := TPaintBox.Create(Self);
+  SkipWaveButton.Parent := Self;
+  SkipWaveButton.Left := PauseButton.Left + PauseButton.Width + 10;
+  SkipWaveButton.Top := 10;
+  SkipWaveButton.Width := 64;
+  SkipWaveButton.Height := 64;
+  SkipWaveButton.Tag := -7;
+  SkipWaveButton.OnPaint := PaintBoxPaint;
+  SkipWaveButton.OnClick := SkipWaveButtonClick;
+
+  PlayerHPIcon := TPaintBox.Create(Self);
+  PlayerHPIcon.Parent := Self;
+  PlayerHPIcon.Left := SkipWaveButton.Left + SkipWaveButton.Width + 10;
+  PlayerHPIcon.Top := 35;
+  PlayerHPIcon.Width := ICON_SIZE;
+  PlayerHPIcon.Height := ICON_SIZE;
+  PlayerHPIcon.Tag := -5;
+  PlayerHPIcon.OnPaint := PaintBoxPaint;
+
+  PlayerHPLabel := TLabel.Create(Self);
+  PlayerHPLabel.Parent := Self;
+  PlayerHPLabel.Left := PlayerHPIcon.Left + ICON_SIZE + 5;
+  PlayerHPLabel.Top := 35;
+  PlayerHPLabel.Width := 100;
+  PlayerHPLabel.Alignment := taLeftJustify;
+  UpdatePlayerHPLabel;
+
+  MoneyIcon := TPaintBox.Create(Self);
+  MoneyIcon.Parent := Self;
+  MoneyIcon.Left := PlayerHPLabel.Left + PlayerHPLabel.Width + 10;
+  MoneyIcon.Top := 35;
+  MoneyIcon.Width := ICON_SIZE;
+  MoneyIcon.Height := ICON_SIZE;
+  MoneyIcon.Tag := -6;
+  MoneyIcon.OnPaint := PaintBoxPaint;
+
+  MoneyLabel := TLabel.Create(Self);
+  MoneyLabel.Parent := Self;
+  MoneyLabel.Left := MoneyIcon.Left + ICON_SIZE + 5;
+  MoneyLabel.Top := 35;
+  MoneyLabel.Width := 100;
+  MoneyLabel.Alignment := taLeftJustify;
+  UpdateMoneyLabel;
+
+  WaveLabel := TLabel.Create(Self);
+  WaveLabel.Parent := Self;
+  WaveLabel.Left := MoneyLabel.Left + MoneyLabel.Width + 10;
+  WaveLabel.Top := 35;
+  WaveLabel.Width := 100;
+  WaveLabel.Alignment := taLeftJustify;
+  UpdateWaveLabel;
+
+  WaveTimerLabel := TLabel.Create(Self);
+  WaveTimerLabel.Parent := Self;
+  WaveTimerLabel.Left := WaveLabel.Left + WaveLabel.Width + 10;
+  WaveTimerLabel.Top := 35;
+  WaveTimerLabel.Width := 100;
+  WaveTimerLabel.Alignment := taLeftJustify;
+  UpdateWaveTimerLabel;
+end;
+
+destructor TGameLevelForm.Destroy;
+var
+  i: Integer;
+  MobType: TMobType;
+  DecType: TDecorationType;
+begin
+  // Освобождение заднего фона
+  if Assigned(imgBackground) then
+    imgBackground.Free;
+
+  // Освобождение текстур кнопок
+  for i := -7 to 3 do
+    if Assigned(ButtonTextures[i]) then
+      ButtonTextures[i].Free;
+  // Освобождение текстур снарядов
+  for i := 0 to 3 do
+    if Assigned(ProjectileTextures[i]) then
+      ProjectileTextures[i].Free;
+  // Освобождение текстур башен
+  for i := 0 to 3 do
+    if Assigned(TowerTextures[i]) then
+      TowerTextures[i].Free;
+
+  // Освобождение текстур мобов
+  for MobType := Low(TMobType) to High(TMobType) do
+    if Assigned(MobTextures[MobType]) then
+      MobTextures[MobType].Free;
+
+  if Assigned(RoadTexture) then
+    RoadTexture.Free;
+  if Assigned(GrassTexture) then
+    GrassTexture.Free;
+
+  if Assigned(StartTexture) then
+    StartTexture.Free;
+  if Assigned(EndTexture) then
+    EndTexture.Free;
+
+  // Освобождение текстур украшений
+  for DecType := Low(TDecorationType) to High(TDecorationType) do
+    if Assigned(DecorationTextures[DecType]) then
+      DecorationTextures[DecType].Free;
+
+  // Освобождение компонентов интерфейса
+  for i := 0 to 3 do
+  begin
+    PaintBoxes[i].Free;
+    Labels[i].Free;
+  end;
+  UpgradeButton.Free;
+  SellButton.Free;
+  SpeedButton.Free;
+  PauseButton.Free;
+  SkipWaveButton.Free;
+  PlayerHPIcon.Free;
+  PlayerHPLabel.Free;
+  MoneyIcon.Free;
+  MoneyLabel.Free;
+  WaveLabel.Free;
+  WaveTimerLabel.Free;
+  Mobs.Free;
+  Towers.Free;
+  Projectiles.Free;
+  SlowEffects.Free;
+  inherited;
+end;
+
+//отрисовка paintboxa
+procedure TGameLevelForm.PaintBoxPaint(Sender: TObject);
+var
+  PaintBox: TPaintBox;
+  Index: Integer;
+  TowerCost: Integer;
+  IsAvailable: Boolean;
+  OldMode: Integer;
+  PenColor: TColor;
+  CanUpgrade: Boolean;
+begin
+  PaintBox := Sender as TPaintBox;
+  if not Assigned(PaintBox) then
+    Exit;
+
+  Index := PaintBox.Tag;
+  if (Index < -7) or (Index > 3) then
+  begin
+    PaintBox.Canvas.Brush.Color := clRed;
+    PaintBox.Canvas.FillRect(Rect(0, 0, PaintBox.Width, PaintBox.Height));
+    PaintBox.Canvas.TextOut(5, 5, 'Неверный индекс ' + IntToStr(Index));
+    Exit;
+  end;
+
+  OldMode := SetStretchBltMode(PaintBox.Canvas.Handle, HALFTONE);
+
+  // Инициализация переменных для устранения предупреждений
+  PenColor := clBlack; // Значение по умолчанию
+  IsAvailable := False;
+  TowerCost := 0;
+  CanUpgrade := False;
+
+  PaintBox.Canvas.Brush.Style := bsClear;
+  // Установка цвета обводки
+  if Index >= 0 then // Кнопки башен
+  begin
+    TowerCost := Round(BASE_TOWER_COSTS[Index] * DifficultyMultiplier);
+    IsAvailable := (Index <= 1) or (WaveNumber >= 6); // Доступность башни
+    if Index = SelectedIndex then
+      PenColor := clBlue // Синяя обводка при выборе башни
+    else if not IsAvailable then
+      PenColor := clGray // Серая обводка для недоступных башен
+    else if Money < TowerCost then
+      PenColor := clRed // Красная обводка при нехватке денег
+    else
+      PenColor := clBlack; // Черная обводка по умолчанию
+  end
+  else // Другие кнопки
+  begin
+    case Index of
+      -1: // Улучшение
+        begin
+          CanUpgrade := (SelectedTowerIndex >= 0) and (Money >= Round(BASE_UPGRADE_COST * DifficultyMultiplier)) and (Towers[SelectedTowerIndex].TowerType < 3);
+          if CanUpgrade then
+          begin
+            // Проверяем доступность следующего типа башни
+            var NextTowerType := Towers[SelectedTowerIndex].TowerType + 1;
+            CanUpgrade := (NextTowerType <= 1) or (WaveNumber >= 4); // Аналогично IsAvailable для башен
+          end;
+          PenColor := IfThen(CanUpgrade, clBlack, clRed); // Черная обводка, если улучшение возможно
+        end;
+      -2: PenColor := IfThen(SelectedTowerIndex >= 0, clBlack, clRed); // Продажа
+      -3: // Ускорение времени
+        begin
+          if IsSpeedUp then
+            PenColor := clBlue // Синяя обводка при активном ускорении
+          else
+            PenColor := clBlack; // Черная обводка по умолчанию
+        end;
+      -4: // Пауза
+        begin
+          if IsSpeedUp then
+            PenColor := clRed // Красная обводка при активном ускорении
+          else if IsPaused then
+            PenColor := clBlue // Синяя обводка при паузе
+          else
+            PenColor := clBlack; // Черная обводка по умолчанию
+        end;
+      -5: PenColor := clBlack; // Иконка HP
+      -6: PenColor := clBlack; // Иконка денег
+      -7: PenColor := IfThen(IsWaveStarting and (WaveNumber < TotalWaves), clBlack, clRed); // Пропуск волны
+    end;
+  end;
+
+  // Отрисовка текстуры и затемнения
+  if Assigned(ButtonTextures[Index]) then
+  begin
+    // Затемнение для недоступных кнопок
+    if (Index >= 0) and (not IsAvailable or (Money < TowerCost)) or
+       (Index = -1) and not CanUpgrade or
+       (Index = -2) and (SelectedTowerIndex < 0) or
+       (Index = -7) and not (IsWaveStarting and (WaveNumber < TotalWaves)) then
+    begin
+      PaintBox.Canvas.Brush.Color := $808080; // Затемнение кнопки
+      PaintBox.Canvas.Brush.Style := bsSolid;
+      PaintBox.Canvas.FillRect(Rect(0, 0, PaintBox.Width, PaintBox.Height));
+      PaintBox.Canvas.Brush.Style := bsClear;
+    end;
+    PaintBox.Canvas.StretchDraw(Rect(0, 0, PaintBox.Width, PaintBox.Height), ButtonTextures[Index]);
+  end
+  else
+  begin
+    PaintBox.Canvas.Brush.Color := clBtnFace;
+    PaintBox.Canvas.Brush.Style := bsSolid;
+    PaintBox.Canvas.FillRect(Rect(0, 0, PaintBox.Width, PaintBox.Height));
+    PaintBox.Canvas.Brush.Style := bsClear;
+    PaintBox.Canvas.TextOut(5, 5, 'Нет текстуры ' + IntToStr(Index));
+  end;
+
+  // Отрисовка обводки после текстуры
+  PaintBox.Canvas.Pen.Color := PenColor;
+  PaintBox.Canvas.Pen.Width := 3; // Толщина обводки
+  PaintBox.Canvas.Pen.Style := psSolid; // Сплошная линия
+  PaintBox.Canvas.Rectangle(0, 0, PaintBox.Width, PaintBox.Height);
+  PaintBox.Canvas.Pen.Width := 1; // Сбрасываем толщину
+  PaintBox.Canvas.Pen.Style := psSolid; // Сбрасываем стиль
+
+  SetStretchBltMode(PaintBox.Canvas.Handle, OldMode);
+end;
+
+//обработка нажатия по башне
+procedure TGameLevelForm.TowerClick(Sender: TObject);
+var
+  PaintBox: TPaintBox;
+    Index: Integer;
+    TowerCost: Integer;
+begin
+  PaintBox := Sender as TPaintBox;
+  if PaintBox = nil then
+    Exit;
+
+  Index := PaintBox.Tag;
+  TowerCost := Round(BASE_TOWER_COSTS[Index] * DifficultyMultiplier);
+
+  if (Index > 1) and (WaveNumber < 6) then
+    Exit;
+
+  if Money >= TowerCost then
+    begin
+      DM.PlayClickSound;
+      SelectedIndex := Index;
+      SelectedTowerIndex := -1;
+      for var i := 0 to 3 do
+        PaintBoxes[i].Invalidate;
+      UpgradeButton.Invalidate;
+      SellButton.Invalidate;
+      SpeedButton.Invalidate;
+      PauseButton.Invalidate;
+      SkipWaveButton.Invalidate;
+      RenderMap;
+    end;
+end;
+
+//обработка нажатия кнопки улучшения
+procedure TGameLevelForm.UpgradeButtonClick(Sender: TObject);
+var
+  NextTowerType: Integer;
+  Tower: TTower;
+begin
+  if (SelectedTowerIndex >= 0) and (Money >= Round(BASE_UPGRADE_COST * DifficultyMultiplier)) and (Towers[SelectedTowerIndex].TowerType < 3) then
+  begin
+    // Проверяем доступность следующего типа башни
+    NextTowerType := Towers[SelectedTowerIndex].TowerType + 1;
+    if not ((NextTowerType <= 1) or (WaveNumber >= 4)) then
+      Exit; // Выходим, если следующий тип башни недоступен
+
+    DM.PlayClickSound;
+    // Извлекаем запись башни
+    Tower := Towers[SelectedTowerIndex];
+    // Обновляем тип башни
+    Tower.TowerType := NextTowerType;
+    // Устанавливаем параметры для нового типа башни
+    case Tower.TowerType of
+      0: // Archer
+      begin
+        Tower.Damage := 1.0;
+        Tower.Cooldown := 2.0 / SpeedMultiplier;
+        Tower.Range := TOWER_RANGES[0];
+      end;
+      1: // Cannon
+      begin
+        Tower.Damage := 3.0;
+        Tower.Cooldown := 3.0 / SpeedMultiplier;
+        Tower.Range := TOWER_RANGES[1];
+      end;
+      2: // IceWizard
+      begin
+        Tower.Damage := 0.5;
+        Tower.Cooldown := 1.8 / SpeedMultiplier;
+        Tower.Range := TOWER_RANGES[2];
+      end;
+      3: // LightningTower
+      begin
+        Tower.Damage := 0.5 + 0.2 * WaveNumber;
+        Tower.Cooldown := 2.2 / SpeedMultiplier;
+        Tower.Range := TOWER_RANGES[3];
+      end;
+    end;
+    // Сохраняем обновленную запись обратно в список
+    Towers[SelectedTowerIndex] := Tower;
+    // Обновляем Map для отображения нового типа башни
+    Map[Tower.X, Tower.Y] := TOWER_BASE + Tower.TowerType;
+
+    Money := Money - Round(BASE_UPGRADE_COST * DifficultyMultiplier); // Снимаем деньги
+    UpdateMoneyLabel; // Обновляем отображение денег
+    RenderMap; // Перерисовываем карту
+    UpgradeButton.Invalidate; // Перерисовываем кнопку улучшения
+  end;
+end;
+
+//обработка нажатия кнопки продажи
+procedure TGameLevelForm.SellButtonClick(Sender: TObject);
+var
+  Tower: TTower;
+  SellPrice: Integer;
+begin
+  if SelectedTowerIndex >= 0 then
+    begin
+      DM.PlayClickSound;
+      Tower := Towers[SelectedTowerIndex];
+      SellPrice := Round(Round(BASE_TOWER_COSTS[Tower.TowerType] * DifficultyMultiplier) * 0.75);
+      Money := Money + SellPrice;
+      Map[Tower.X, Tower.Y] := GRASS;
+      Towers.Delete(SelectedTowerIndex);
+      SelectedTowerIndex := -1;
+      UpdateMoneyLabel;
+      RenderMap;
+      for var i := 0 to 3 do
+        PaintBoxes[i].Invalidate;
+      UpgradeButton.Invalidate;
+      SellButton.Invalidate;
+      SpeedButton.Invalidate;
+      PauseButton.Invalidate;
+      SkipWaveButton.Invalidate;
+    end;
+end;
+
+//обработка нажатия кнопки ускорения
+procedure TGameLevelForm.SpeedButtonClick(Sender: TObject);
+var
+  i: Integer;
+  Tower: TTower;
+begin
+  DM.PlayClickSound;
+  IsSpeedUp := not IsSpeedUp;
+  SpeedMultiplier := IfThen(IsSpeedUp, 2.0, 1.0);
+  for i := 0 to Towers.Count - 1 do
+    begin
+      Tower := Towers[i];
+      case Tower.TowerType of
+        0: Tower.Cooldown := 2.0 / SpeedMultiplier;
+        1: Tower.Cooldown := 3.0 / SpeedMultiplier;
+        2: Tower.Cooldown := 1.8 / SpeedMultiplier;
+        3: Tower.Cooldown := 2.2 / SpeedMultiplier;
+      end;
+      Towers[i] := Tower;
+    end;
+
+  SpeedButton.Invalidate;
+  PauseButton.Invalidate;
+end;
+
+//обработка нажатия кнопки паузы
+procedure TGameLevelForm.PauseButtonClick(Sender: TObject);
+begin
+  if not IsSpeedUp then
+    begin
+      DM.PlayClickSound;
+      IsPaused := not IsPaused;
+      Timer.Enabled := not IsPaused;
+      PauseButton.Invalidate;
+    end;
+end;
+
+//обработка нажатия кнопки пропуска ожидания волны
+procedure TGameLevelForm.SkipWaveButtonClick(Sender: TObject);
+begin
+  if IsWaveStarting and (WaveNumber < TotalWaves) then
+    begin
+      DM.PlayClickSound;
+      IsWaveStarting := False;
+      WaveStartTime := 0.0;
+      StartNewWave;
+      SkipWaveButton.Invalidate;
+      UpdateWaveTimerLabel;
+    end;
+end;
+
+//обработка нажатия кнопок паузы и выхода
+procedure TGameLevelForm.FormKeyDown(Sender: TObject; var Key: Word; Shift: TShiftState);
+begin
+  if (Key = Ord('P')) and not IsSpeedUp then
+    begin
+      IsPaused := not IsPaused;
+      Timer.Enabled := not IsPaused;
+      PauseButton.Invalidate;
+    end;
+  if Key = VK_ESCAPE then
+    Close; // Закрывает форму и завершает приложение
+
+end;
+
+// отображение формы
+procedure TGameLevelForm.FormShow(Sender: TObject);
+begin
+  // Load settings
+  SettingsFilePath := IncludeTrailingPathDelimiter(ExtractFilePath(ParamStr(0))) + 'settings.ini';
+  LoadSettings(GameSettings, SettingsFilePath);
+
+  InitializeMap;
+  InitializePath;
+  RenderMap;
+
+  // Применение настроек звука
+  DM.FMusicVolume := GameSettings.MusicVolume;
+  DM.FEffectsVolume := GameSettings.EffectsVolume;
+  DM.FMasterVolume := GameSettings.MasterVolume;
+  DM.EnableClickSound(GameSettings.ClickSoundEnabled);
+
+  // музыка
+  DM.StopMusic;
+  DM.PlayGameMusic;
+end;
+
+//нажатие по карте
+procedure TGameLevelForm.MapMouseDown(Sender: TObject; Button: TMouseButton; Shift: TShiftState; X, Y: Integer);
+var
+  CellX, CellY: Integer;
+  TowerCost: Integer;
+  Tower: TTower;
+  i: Integer;
+begin
+  CellX := X div TILE_SIZE;
+  CellY := Y div TILE_SIZE;
+
+  if (CellX >= 0) and (CellX < 10) and (CellY >= 0) and (CellY < 10) then
+    begin
+      if Button = mbLeft then
+        begin
+          if (Map[CellX, CellY] >= TOWER_BASE) and (Map[CellX, CellY] < TOWER_BASE + 4) then
+            begin
+              DM.PlayClickSound;
+              SelectedIndex := -1;
+              SelectedTowerIndex := -1;
+              for i := 0 to Towers.Count - 1 do
+                begin
+                  if (Towers[i].X = CellX) and (Towers[i].Y = CellY) then
+                    begin
+                      SelectedTowerIndex := i;
+                      Break;
+                    end;
+                end;
+              for i := 0 to 3 do
+                PaintBoxes[i].Invalidate;
+              UpgradeButton.Invalidate;
+              SellButton.Invalidate;
+              SpeedButton.Invalidate;
+              PauseButton.Invalidate;
+              SkipWaveButton.Invalidate;
+              RenderMap;
+            end
+          else if (SelectedIndex >= 0) and (SelectedIndex <= 3) and (Map[CellX, CellY] = GRASS) then
+            begin
+              TowerCost := Round(BASE_TOWER_COSTS[SelectedIndex] * DifficultyMultiplier);
+              if Money >= TowerCost then
+                begin
+                  DM.PlayClickSound;
+                  Map[CellX, CellY] := TOWER_BASE + SelectedIndex;
+                  Tower.TowerType := SelectedIndex;
+                  Tower.X := CellX;
+                  Tower.Y := CellY;
+                  case Tower.TowerType of
+                    0: begin
+                      Tower.Damage := 1.0;
+                      Tower.Cooldown := 2.0 / SpeedMultiplier;
+                      Tower.Range := TILE_SIZE * 1.5;
+                    end;
+                    1: begin
+                      Tower.Damage := 3.0;
+                      Tower.Cooldown := 3.0 / SpeedMultiplier;
+                      Tower.Range := TILE_SIZE * 1.8;
+                    end;
+                    2: begin
+                      Tower.Damage := 0.5;
+                      Tower.Cooldown := 1.8 / SpeedMultiplier;
+                      Tower.Range := TILE_SIZE * 1.2;
+                    end;
+                    3: begin
+                      Tower.Damage := 0.5 + 0.2 * WaveNumber;
+                      Tower.Cooldown := 2.2 / SpeedMultiplier;
+                      Tower.Range := TILE_SIZE * 2.0;
+                    end;
+                  end;
+                  Tower.LastShot := 0.0;
+                  Towers.Add(Tower);
+
+                  Money := Money - TowerCost;
+                  UpdateMoneyLabel;
+                  RenderMap;
+                  SelectedIndex := -1;
+                  SelectedTowerIndex := -1;
+                  for i := 0 to 3 do
+                    PaintBoxes[i].Invalidate;
+                  UpgradeButton.Invalidate;
+                  SellButton.Invalidate;
+                  SpeedButton.Invalidate;
+                  PauseButton.Invalidate;
+                  SkipWaveButton.Invalidate;
+                end;
+            end
+          else
+            begin
+              SelectedIndex := -1;
+              SelectedTowerIndex := -1;
+              for i := 0 to 3 do
+                PaintBoxes[i].Invalidate;
+              UpgradeButton.Invalidate;
+              SellButton.Invalidate;
+              SpeedButton.Invalidate;
+              PauseButton.Invalidate;
+              SkipWaveButton.Invalidate;
+              RenderMap;
+            end;
+        end
+      else if Button = mbRight then
+        begin
+          SelectedIndex := -1;
+          SelectedTowerIndex := -1;
+          for i := 0 to 3 do
+            PaintBoxes[i].Invalidate;
+          UpgradeButton.Invalidate;
+          SellButton.Invalidate;
+          SpeedButton.Invalidate;
+          PauseButton.Invalidate;
+          SkipWaveButton.Invalidate;
+          RenderMap;
+        end;
+    end;
+end;
+
+// обработка таймера
+procedure TGameLevelForm.TimerTick(Sender: TObject);
+var
+  i, j: Integer;
+  Mob: TMob;
+  TimeDelta: Double;
+  BaseSpeed, Speed: Double;
+  Tower: TTower;
+  CurrentTime: Double;
+  MinDistance: Double;
+  TargetMobIndex: Integer;
+  Distance: Double;
+  Projectile: TProjectile;
+  DeltaX, DeltaY: Double;
+  Reward: Integer;
+  SlowEffect: TSlowEffect;
+  AoeDamage: Double;
+begin
+  if (Mobs = nil) or (Towers = nil) or (Projectiles = nil) or (imgMap = nil) or IsPaused or GameEnded then
+    Exit;
+
+  TimeDelta := Timer.Interval / 1000.0;
+  CurrentTime := GetTickCount / 1000.0;
+
+  i := 0;
+  while i < SlowEffects.Count do
+    begin
+      SlowEffect := SlowEffects[i];
+      SlowEffect.Duration := SlowEffect.Duration - TimeDelta * SpeedMultiplier;
+      if SlowEffect.Duration <= 0 then
+        SlowEffects.Delete(i)
+      else
+        begin
+          SlowEffects[i] := SlowEffect;
+          Inc(i);
+        end;
+    end;
+
+  if IsWaveStarting then
+    begin
+      WaveStartTime := WaveStartTime - TimeDelta * SpeedMultiplier;
+      UpdateWaveTimerLabel;
+      if WaveStartTime <= 0 then
+        begin
+          IsWaveStarting := False;
+          WaveStartTime := 0.0;
+          StartNewWave;
+          SkipWaveButton.Invalidate;
+        end;
+    end;
+
+  i := 0;
+  while i < Mobs.Count do
+    begin
+      Mob := Mobs[i];
+      case Mob.MobType of
+        normal_slime: BaseSpeed := NORMAL_SLIME_SPEED;
+        big_slime: BaseSpeed := BIG_SLIME_SPEED;
+        king_slime: BaseSpeed := KING_SLIME_SPEED;
+        skeleton: BaseSpeed := SKELETON_SPEED;
+        zombie: BaseSpeed := ZOMBIE_SPEED;
+        demon: BaseSpeed := DEMON_SPEED;
+      end;
+      Speed := BaseSpeed * SpeedMultiplier;
+      for j := 0 to SlowEffects.Count - 1 do
+        if SlowEffects[j].MobID = Mob.ID then
+          Speed := Speed * SlowEffects[j].SlowFactor;
+      Mob.Progress := Mob.Progress + Speed * TimeDelta;
+
+      if Mob.PathIndex < Length(Path) - 1 then
+        begin
+          var StartPoint := Path[Mob.PathIndex];
+          var EndPoint := Path[Mob.PathIndex + 1];
+          Mob.X := StartPoint.X + (EndPoint.X - StartPoint.X) * Mob.Progress;
+          Mob.Y := StartPoint.Y + (EndPoint.Y - StartPoint.Y) * Mob.Progress;
+
+          if Mob.Progress >= 1.0 then
+            begin
+              Mob.PathIndex := Mob.PathIndex + 1;
+              Mob.Progress := Mob.Progress - 1.0;
+              if Mob.PathIndex < Length(Path) - 1 then
+                begin
+                  Mob.X := Path[Mob.PathIndex].X + (Path[Mob.PathIndex + 1].X - Path[Mob.PathIndex].X) * Mob.Progress;
+                  Mob.Y := Path[Mob.PathIndex].Y + (Path[Mob.PathIndex + 1].Y - Path[Mob.PathIndex].Y) * Mob.Progress;
+                end
+              else
+                begin
+                  Mob.X := Path[Mob.PathIndex].X;
+                  Mob.Y := Path[Mob.PathIndex].Y;
+                end;
+            end;
+        end
+      else
+        begin
+          Mobs.Delete(i);
+          case Mob.MobType of
+            normal_slime: PlayerHP := PlayerHP - Round(BASE_NORMAL_SLIME_DAMAGE * DifficultyMultiplier);
+            big_slime: PlayerHP := PlayerHP - Round(BASE_BIG_SLIME_DAMAGE * DifficultyMultiplier);
+            king_slime: PlayerHP := PlayerHP - Round(BASE_KING_SLIME_DAMAGE * DifficultyMultiplier);
+            skeleton: PlayerHP := PlayerHP - Round(BASE_SKELETON_DAMAGE * DifficultyMultiplier);
+            zombie: PlayerHP := PlayerHP - Round(BASE_ZOMBIE_DAMAGE * DifficultyMultiplier);
+            demon: PlayerHP := PlayerHP - Round(BASE_DEMON_DAMAGE * DifficultyMultiplier);
+          end;
+          UpdatePlayerHPLabel;
+          if PlayerHP <= 0 then
+            begin
+              GameEnded := True;
+              Timer.Enabled := False;
+              ShowMessage('Игра окончена! Вы не смогли защитить королевство.');
+            end;
+       Continue;
+     end;
+
+     if Mob.HP <= 0 then
+     begin
+       Mobs.Delete(i);
+       case Mob.MobType of
+         normal_slime: Reward := Round(BASE_NORMAL_SLIME_REWARD / DifficultyMultiplier);
+         big_slime: Reward := Round(BASE_BIG_SLIME_REWARD / DifficultyMultiplier);
+         king_slime: Reward := Round(BASE_KING_SLIME_REWARD / DifficultyMultiplier);
+         skeleton: Reward := Round(BASE_SKELETON_REWARD / DifficultyMultiplier);
+         zombie: Reward := Round(BASE_ZOMBIE_REWARD / DifficultyMultiplier);
+         demon: Reward := Round(BASE_DEMON_REWARD / DifficultyMultiplier);
+       end;
+       Money := Money + Reward;
+       UpdateMoneyLabel;
+       Continue;
+     end;
+
+      Mobs[i] := Mob;
+      Inc(i);
+    end;
+
+  for i := 0 to Towers.Count - 1 do
+    begin
+      Tower := Towers[i];
+      if CurrentTime - Tower.LastShot < (Tower.Cooldown / SpeedMultiplier) then
+        Continue;
+
+      MinDistance := MaxDouble;
+      TargetMobIndex := -1;
+      for j := 0 to Mobs.Count - 1 do
+        begin
+          Distance := Sqrt(Sqr((Tower.X + 0.5) * TILE_SIZE - (Mobs[j].X * TILE_SIZE + TILE_SIZE/2)) +
+                           Sqr((Tower.Y + 0.5) * TILE_SIZE - (Mobs[j].Y * TILE_SIZE + TILE_SIZE/2)));
+          if (Distance <= Tower.Range) and (Distance < MinDistance) then
+            begin
+              MinDistance := Distance;
+              TargetMobIndex := j;
+            end;
+        end;
+
+      if TargetMobIndex >= 0 then
+        begin
+          Projectile.X := (Tower.X + 0.5) * TILE_SIZE;
+          Projectile.Y := (Tower.Y + 0.5) * TILE_SIZE;
+          Projectile.TargetID := Mobs[TargetMobIndex].ID;
+          Projectile.TargetX := Mobs[TargetMobIndex].X * TILE_SIZE + TILE_SIZE/2;
+          Projectile.TargetY := Mobs[TargetMobIndex].Y * TILE_SIZE + TILE_SIZE/2;
+          Projectile.TowerType := Tower.TowerType;
+          case Tower.TowerType of
+            0: Projectile.Damage := Tower.Damage;
+            1: Projectile.Damage := Tower.Damage;
+            2: Projectile.Damage := Tower.Damage;
+            3: Projectile.Damage := 0.5 + 0.2 * WaveNumber + 0.5 * Tower.TowerType;
+          end;
+          Projectile.Color := TriangleColors[Tower.TowerType];
+          Projectile.Speed := PROJECTILE_SPEED;
+          Projectiles.Add(Projectile);
+
+          Tower.LastShot := CurrentTime;
+          Towers[i] := Tower;
+        end;
+    end;
+
+  i := 0;
+  while i < Projectiles.Count do
+  begin
+    Projectile := Projectiles[i];
+    TargetMobIndex := -1;
+    for j := 0 to Mobs.Count - 1 do
+    begin
+      if Mobs[j].ID = Projectile.TargetID then
+      begin
+        TargetMobIndex := j;
+        Break;
+      end;
+    end;
+
+    if TargetMobIndex < 0 then
+    begin
+      Projectiles.Delete(i);
+      Continue;
+    end;
+
+    Mob := Mobs[TargetMobIndex];
+    Projectile.TargetX := Mob.X * TILE_SIZE + TILE_SIZE/2;
+    Projectile.TargetY := Mob.Y * TILE_SIZE + TILE_SIZE/2;
+    Projectiles[i] := Projectile;
+
+    Distance := Sqr(Projectile.X - (Mob.X * TILE_SIZE + TILE_SIZE/2)) +
+                Sqr(Projectile.Y - (Mob.Y * TILE_SIZE + TILE_SIZE/2));
+    Distance := Sqrt(Distance);
+    if Distance <= PROJECTILE_SIZE / 2 then
+    begin
+      Mob.HP := Mob.HP - Round(Projectile.Damage);
+      Mobs[TargetMobIndex] := Mob;
+
+      if Projectile.TowerType = 1 then
+      begin
+        for j := 0 to Mobs.Count - 1 do
+        begin
+          if j = TargetMobIndex then Continue;
+          Distance := Sqrt(Sqr((Mob.X * TILE_SIZE + TILE_SIZE/2) - (Mobs[j].X * TILE_SIZE + TILE_SIZE/2)) +
+                          Sqr((Mob.Y * TILE_SIZE + TILE_SIZE/2) - (Mobs[j].Y * TILE_SIZE + TILE_SIZE/2)));
+          if Distance <= CANNON_AOE_RADIUS then
+          begin
+            AoeDamage := Projectile.Damage * (1.0 - 0.5 * Distance / CANNON_AOE_RADIUS);
+            Mob := Mobs[j];
+            Mob.HP := Mob.HP - Round(AoeDamage);
+            Mobs[j] := Mob;
+          end;
+        end;
+      end;
+
+      if Projectile.TowerType = 2 then
+      begin
+        for j := 0 to Mobs.Count - 1 do
+        begin
+          Distance := Sqrt(Sqr((Mob.X * TILE_SIZE + TILE_SIZE/2) - (Mobs[j].X * TILE_SIZE + TILE_SIZE/2)) +
+                          Sqr((Mob.Y * TILE_SIZE + TILE_SIZE/2) - (Mobs[j].Y * TILE_SIZE + TILE_SIZE/2)));
+          if Distance <= ICE_WIZARD_SLOW_RADIUS then
+          begin
+            SlowEffect.MobID := Mobs[j].ID;
+            SlowEffect.SlowFactor := ICE_WIZARD_SLOW_FACTOR;
+            SlowEffect.Duration := ICE_WIZARD_SLOW_DURATION;
+            SlowEffects.Add(SlowEffect);
+          end;
+        end;
+      end;
+
+      Projectiles.Delete(i);
+      Continue;
+    end;
+
+    DeltaX := Projectile.TargetX - Projectile.X;
+    DeltaY := Projectile.TargetY - Projectile.Y;
+    Distance := Sqrt(Sqr(DeltaX) + Sqr(DeltaY));
+    if Distance > 0 then
+    begin
+      Projectile.X := Projectile.X + DeltaX * (Projectile.Speed * TimeDelta / Distance);
+      Projectile.Y := Projectile.Y + DeltaY * (Projectile.Speed * TimeDelta / Distance);
+      Projectiles[i] := Projectile;
+      Inc(i);
+    end;
+  end;
+
+  if (SpawnedMobs < MobsToSpawn) and not IsWaveStarting then
+    begin
+      if Timer.Tag >= Round(MobSpawnIntervals[NextMobType] / SpeedMultiplier / Timer.Interval) then
+        begin
+          SpawnMob;
+          Timer.Tag := 0;
+        end
+      else
+        Timer.Tag := Timer.Tag + 1;
+    end;
+
+  if (SpawnedMobs >= MobsToSpawn) and (WaveNumber < TotalWaves) and not IsWaveStarting then
+    begin
+      IsWaveStarting := True;
+      WaveStartTime := WAVE_START_INTERVAL / 1000.0;
+      UpdateWaveTimerLabel;
+      SkipWaveButton.Invalidate;
+    end;
+
+  if (SpawnedMobs >= MobsToSpawn) and (Mobs.Count = 0) and (WaveNumber = TotalWaves) then
+    begin
+      GameEnded := True;
+      Timer.Enabled := False;
+      ShowMessage('Победа! Вы смогли отбить территории у монстров и выстроить защитные сооружения, но это ещё не конец!');
+    end;
+
+  RenderMap;
+end;
+
+end.
